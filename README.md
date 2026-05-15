@@ -132,9 +132,11 @@ Modern Chromium / Firefox / Safari. Requires File API, DOMParser, ES2022. No IE.
 
 ## Roadmap
 
-- **C10** Amplify Gen 2 backend (Cognito groups, AppSync schema, S3)
-- **C11** Login UI + Zustand auth store + role-gated routes
-- **C12** Send-for-publishing + admin event/user panels + Andrej seed
+- **C10** Amplify Gen 2 backend (Cognito groups, AppSync schema, S3) ✓
+- **C11** Login UI + Zustand auth store + role-gated routes ✓
+- **C12** Send-for-publishing + admin event/user panels + Andrej seed ✓
+- **C13** Admin file inspection — admin can download and preview the submitted ZIP/project JSON directly from the review queue
+- **C14** User auto-save — periodically persist the working project to `localStorage` and offer to restore it on next open, so progress survives browser crashes, power loss, or connectivity drops
 
 ## License
 
