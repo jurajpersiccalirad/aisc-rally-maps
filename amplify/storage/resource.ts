@@ -12,6 +12,7 @@ export const storage = defineStorage({
   access: (allow) => ({
     'users/{entity_id}/*': [
       allow.entity('identity').to(['read', 'write', 'delete']),
+      allow.groups(['USER']).to(['read', 'write', 'delete']),
       allow.groups(['ADMIN']).to(['read', 'delete']),
     ],
     'published/*': [
