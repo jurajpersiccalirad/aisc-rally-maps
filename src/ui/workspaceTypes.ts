@@ -1,0 +1,27 @@
+import type { PointCategory } from '../types';
+
+export type HoverState =
+  | { kind: 'track'; trackId: string }
+  | { kind: 'stage'; stageId: string };
+
+export type CropMode = { stageId: string; edge: 'start' | 'end' } | null;
+
+export interface Visibility {
+  hiddenStageIds: ReadonlySet<string>;
+  hiddenTrackIds: ReadonlySet<string>;
+  hiddenCategories: ReadonlySet<PointCategory>;
+  showBuffers: boolean;
+}
+
+export interface VisibilityActions {
+  toggleStage(id: string): void;
+  toggleTrack(id: string): void;
+  toggleCategory(c: PointCategory): void;
+  toggleBuffers(): void;
+  showAll(): void;
+}
+
+export type FocusTarget =
+  | { kind: 'track'; trackId: string; nonce: number }
+  | { kind: 'stage'; stageId: string; nonce: number }
+  | { kind: 'point'; pointId: string; nonce: number };

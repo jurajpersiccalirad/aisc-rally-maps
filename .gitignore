@@ -1,0 +1,23 @@
+node_modules
+dist
+dist-ssr
+coverage
+*.local
+
+.DS_Store
+.idea
+.vscode/*
+!.vscode/extensions.json
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+*.tsbuildinfo
+.tmp
+
+# Amplify Gen 2 — generated on `npx ampx sandbox` / pipeline-deploy
+.amplify
+amplify_outputs.json
+amplify_outputs.*.json
