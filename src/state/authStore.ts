@@ -12,6 +12,7 @@ export type Role = 'ADMIN' | 'USER' | null;
 
 export interface AuthUser {
   userId: string;
+  identityId: string;
   username: string;
   email: string;
   role: Role;
@@ -65,6 +66,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       set({
         user: {
           userId: cogUser.userId,
+          identityId: session.identityId ?? '',
           username: cogUser.username,
           email,
           role: deriveRole(groups),

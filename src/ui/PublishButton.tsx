@@ -34,8 +34,8 @@ export function PublishButton() {
       const projectJson = serializeProject(state);
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const slug = filename.replace(/\.zip$/, '');
-      const zipKey = `users/${user.userId}/${stamp}-${slug}.zip`;
-      const projectKey = `users/${user.userId}/${stamp}-${projectJsonFilename(state.eventName)}`;
+      const zipKey = `users/${user.identityId}/${stamp}-${slug}.zip`;
+      const projectKey = `users/${user.identityId}/${stamp}-${projectJsonFilename(state.eventName)}`;
 
       await uploadData({ path: zipKey, data: blob }).result;
       await uploadData({ path: projectKey, data: projectJson }).result;
