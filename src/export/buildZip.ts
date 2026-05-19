@@ -18,7 +18,12 @@ import {
   projectJsonFilename,
   serializeProject,
 } from './projectJson';
+import { credentialsSql, type CredentialSqlRow, type CredRole } from './credentialsSql';
+import { deviceSql, type DeviceRow } from './deviceSql';
+import { eventSql } from './eventSql';
+import { hashPassword } from '../lib/password';
 import { startEndPointsTxt, type StageStartEnd } from './startEndPointsTxt';
+import { stagesSql, type StageTableRow } from './stagesSql';
 import {
   forceMultiPolygonToWkt,
   lineStringToWkt,
@@ -76,6 +81,11 @@ export function planExport(
 
   paths.push('start_end_points.txt');
   paths.push('summary.csv');
+  paths.push('db/stages_table.sql');
+  paths.push('db/event_table.sql');
+  paths.push('db/devices_table.sql');
+  paths.push('db/credentials_table.sql');
+  paths.push('db/credentials/<per-user .txt files>');
   paths.push(projectJsonFilename(state.eventName));
   paths.push(`wkt/${eventSlug}/${eventSlug}.wkt`);
   for (const s of state.stages) {
@@ -114,9 +124,31 @@ export interface BuildZipResult {
   blob: Blob;
 }
 
+export interface CredRow {
+  username: string;
+  plainPassword: string;
+  role: CredRole;
+}
+
+export interface DbExportOptions {
+  stageStartingId: number;
+  eventId: number;
+  eventStartDt: string;
+  eventEndDt: string;
+  unitSystem: 'imperial' | 'metric';
+  deviceStartingId: number;
+  selectedDevices: DeviceRow[];
+  credStartingId: number;
+  credEventId: number | null;
+  appUrl: string;
+  credRows: CredRow[];
+  onHashProgress?: (done: number, total: number) => void;
+}
+
 export async function buildExportZip(
   state: ProjectState,
   geometry: StageGeometry,
+  db: DbExportOptions,
 ): Promise<BuildZipResult> {
   const eventSlug = slugForFilename(state.eventName);
   const zip = new JSZip();
@@ -131,6 +163,7 @@ export async function buildExportZip(
 
   const startEndRows: StageStartEnd[] = [];
   const summaryRows: StageSummaryRow[] = [];
+  const tableRows: StageTableRow[] = [];
   const allBufferedMps: RingMP[] = [];
 
   const overlapNamesFor = (stageId: string): string[] =>
@@ -180,6 +213,12 @@ export async function buildExportZip(
       overlapsWith: overlapNames,
     });
     startEndRows.push({ exportName: s.exportName, start, end });
+    tableRows.push({
+      name: s.exportName,
+      lengthM: Math.round(lengthKm * 1000),
+      start,
+      end,
+    });
     allBufferedMps.push(mp);
   }
 
@@ -191,6 +230,31 @@ export async function buildExportZip(
   zip.file('summary.csv', csvSummary(summaryRows));
   zip.file(projectJsonFilename(state.eventName), serializeProject(state));
 
+  // DB SQL files
+  const dbDir = zip.folder('db');
+  if (!dbDir) throw new Error('Failed to create db/ folder.');
+
+  dbDir.file('stages_table.sql', stagesSql(tableRows, db.stageStartingId, db.eventId));
+  dbDir.file('event_table.sql', eventSql(db.eventId, state.eventName, db.eventStartDt, db.eventEndDt, db.unitSystem));
+  dbDir.file('devices_table.sql', deviceSql(db.selectedDevices, db.deviceStartingId, db.eventId));
+
+  // Hash passwords then write credentials SQL + per-user txt files
+  const credDir = dbDir.folder('credentials');
+  if (!credDir) throw new Error('Failed to create db/credentials/ folder.');
+  const hashedRows: CredentialSqlRow[] = [];
+  const total = db.credRows.length;
+  for (let i = 0; i < total; i++) {
+    const row = db.credRows[i];
+    db.onHashProgress?.(i, total);
+    const hashed = await hashPassword(row.plainPassword);
+    hashedRows.push({ username: row.username, hashedPassword: hashed, role: row.role, eventId: db.credEventId });
+    const txtName = `${eventSlug}_${row.username}_aisc_credentials.txt`;
+    const txtContent = `URL: ${db.appUrl}\nUsername: ${row.username}\nPassword: ${row.plainPassword}\n`;
+    credDir.file(txtName, txtContent);
+  }
+  db.onHashProgress?.(total, total);
+  dbDir.file('credentials_table.sql', credentialsSql(hashedRows, db.credStartingId));
+
   const blob = await zip.generateAsync({
     type: 'blob',
     compression: 'DEFLATE',
@@ -201,7 +265,8 @@ export async function buildExportZip(
 export async function downloadExportZip(
   state: ProjectState,
   geometry: StageGeometry,
+  db: DbExportOptions,
 ): Promise<void> {
-  const { filename, blob } = await buildExportZip(state, geometry);
+  const { filename, blob } = await buildExportZip(state, geometry, db);
   saveAs(blob, filename);
 }

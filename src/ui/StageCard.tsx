@@ -396,7 +396,7 @@ export function StageCard({
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px] font-mono">
         <dt className="text-slate-500">length</dt>
-        <dd>{lengthKm.toFixed(3)} km</dd>
+        <dd>{Math.round(lengthKm * 1000)} m</dd>
         {ends && (
           <>
             <dt className="text-slate-500">start</dt>

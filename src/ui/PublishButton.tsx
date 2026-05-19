@@ -30,7 +30,12 @@ export function PublishButton() {
     setBusy(true);
     setMessage(null);
     try {
-      const { blob, filename } = await buildExportZip(state, geometry);
+      const { blob, filename } = await buildExportZip(state, geometry, {
+        stageStartingId: 1, eventId: 0,
+        eventStartDt: '', eventEndDt: '', unitSystem: 'metric',
+        deviceStartingId: 1, selectedDevices: [],
+        credStartingId: 1, credEventId: null, appUrl: '', credRows: [],
+      });
       const projectJson = serializeProject(state);
       const stamp = new Date().toISOString().replace(/[:.]/g, '-');
       const slug = filename.replace(/\.zip$/, '');
