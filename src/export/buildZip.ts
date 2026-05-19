@@ -10,9 +10,9 @@ import {
   getStageLengthKm,
 } from '../state/selectors';
 import type { StageGeometry } from '../state/useStageGeometry';
-import type { ParsedPoint, PointCategory, ProjectState } from '../types';
+import type { PointCategory, ProjectState } from '../types';
 import { csvSummary, type StageSummaryRow } from './csvSummary';
-import { eventGeoJson, stagePolygonGeoJson } from './geojsonWriter';
+import { stagePolygonGeoJson } from './geojsonWriter';
 import { gpxForStage } from './gpxWriter';
 import {
   projectJsonFilename,
@@ -78,7 +78,6 @@ export function planExport(
   paths.push('summary.csv');
   paths.push(projectJsonFilename(state.eventName));
   paths.push(`wkt/${eventSlug}/${eventSlug}.wkt`);
-  paths.push(`geojson/${eventSlug}/${eventSlug}.geojson`);
   for (const s of state.stages) {
     paths.push(`wkt/${eventSlug}/${s.exportName}.wkt`);
     paths.push(`wkt/${eventSlug}/${s.exportName}-gj.wkt`);
@@ -133,7 +132,6 @@ export async function buildExportZip(
   const startEndRows: StageStartEnd[] = [];
   const summaryRows: StageSummaryRow[] = [];
   const allBufferedMps: RingMP[] = [];
-  const stageGeoJsonInput: Parameters<typeof eventGeoJson>[0]['stages'] = [];
 
   const overlapNamesFor = (stageId: string): string[] =>
     (geometry.overlapsFor.get(stageId) ?? [])
@@ -154,15 +152,7 @@ export async function buildExportZip(
     wktDir.file(`${s.exportName}.wkt`, multiPolygonToWkt(mp));
     wktDir.file(`${s.exportName}-gj.wkt`, lineStringToWkt(derived));
 
-    geojsonDir.file(
-      `${s.exportName}.geojson`,
-      stagePolygonGeoJson(mp, {
-        name: s.exportName,
-        lengthKm,
-        bufferM: s.bufferRadiusM,
-        overlapsWith: overlapNames,
-      }),
-    );
+    geojsonDir.file(`${s.exportName}.geojson`, stagePolygonGeoJson(mp));
 
     const assignedPoints = state.points.filter(
       (p) => stageMap.get(p.id) === s.id,
@@ -191,36 +181,11 @@ export async function buildExportZip(
     });
     startEndRows.push({ exportName: s.exportName, start, end });
     allBufferedMps.push(mp);
-    stageGeoJsonInput.push({
-      name: s.exportName,
-      mp,
-      lengthKm,
-      bufferM: s.bufferRadiusM,
-      overlapsWith: overlapNames,
-      derivedLine: derived,
-    });
   }
 
-  // Combined <event>.wkt — union of all repaired stage buffers (the
-  // shapely-validity fix that `check_wkt_gpx.py` did by hand for Severn).
+  // Combined <event>.wkt — union of all repaired stage buffers.
   const combinedMp = unionAll(allBufferedMps);
   wktDir.file(`${eventSlug}.wkt`, forceMultiPolygonToWkt(combinedMp));
-
-  // Event-level FeatureCollection
-  const points: Parameters<typeof eventGeoJson>[0]['points'] = state.points.map(
-    (p: ParsedPoint) => {
-      const cat = effectiveCategory(p);
-      const stageId = stageMap.get(p.id) ?? null;
-      const stageName = stageId
-        ? (state.stages.find((s) => s.id === stageId)?.exportName ?? null)
-        : null;
-      return { point: p, effectiveCategory: cat, stageName };
-    },
-  );
-  geojsonDir.file(
-    `${eventSlug}.geojson`,
-    eventGeoJson({ stages: stageGeoJsonInput, points }),
-  );
 
   zip.file('start_end_points.txt', startEndPointsTxt(startEndRows));
   zip.file('summary.csv', csvSummary(summaryRows));

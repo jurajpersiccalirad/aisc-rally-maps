@@ -22,11 +22,28 @@ export interface StageGeometry {
 
 /**
  * Computes buffered + repaired polygons for every stage and the pairwise
- * overlap map. Memoised on the full project state, so any reducer dispatch
- * triggers a recompute — fine for a few dozen stages, slow beyond that.
+ * overlap map. Only recomputes when geometry-relevant fields change (legs,
+ * crop, bufferRadiusM, tracks). exportName and eventName changes do NOT
+ * trigger a recompute — preventing expensive turf/polygon-clipping work on
+ * every keystroke while the user is typing a stage or event name.
  */
 export function useStageGeometry(): StageGeometry {
   const state = useProject();
+
+  // Stable string that changes only when geometry-relevant stage fields change.
+  const geometryFingerprint = useMemo(
+    () =>
+      state.stages
+        .map(
+          (s) =>
+            `${s.id}|${s.bufferRadiusM}|${s.cropStart}|${s.cropEnd}|${s.legs
+              .map((l) => `${l.trackId}:${l.reversed ? 1 : 0}`)
+              .join(',')}`,
+        )
+        .join(';'),
+    [state.stages],
+  );
+
   return useMemo(() => {
     const buffered = new Map<string, RingMP>();
     for (const s of state.stages) {
@@ -55,6 +72,7 @@ export function useStageGeometry(): StageGeometry {
       }
     }
     return { buffered, overlapsFor, intersections };
-  }, [state]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [geometryFingerprint, state.tracks]);
 }
 
