@@ -21,6 +21,7 @@ export const initialProjectState: ProjectState = {
 
 export type ProjectAction =
   | { type: 'LOAD_SOURCE_FILE'; result: ParseResult }
+  | { type: 'MERGE_SOURCE_FILE'; result: ParseResult }
   | { type: 'LOAD_PROJECT_JSON'; state: ProjectState }
   | { type: 'RESET' }
   | { type: 'SET_EVENT_NAME'; name: string }
@@ -108,6 +109,23 @@ export function projectReducer(
         sourceFiles: [sourceFile],
         tracks,
         points,
+      };
+    }
+    case 'MERGE_SOURCE_FILE': {
+      const { sourceFile, tracks, points } = action.result;
+      // Skip if this exact file was already loaded (same name + size)
+      if (
+        state.sourceFiles.some(
+          (f) => f.name === sourceFile.name && f.sizeBytes === sourceFile.sizeBytes,
+        )
+      ) {
+        return state;
+      }
+      return {
+        ...state,
+        sourceFiles: [...state.sourceFiles, sourceFile],
+        tracks: [...state.tracks, ...tracks],
+        points: [...state.points, ...points],
       };
     }
     case 'LOAD_PROJECT_JSON':

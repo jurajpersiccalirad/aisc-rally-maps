@@ -1,10 +1,10 @@
 /**
- * Seeds the initial admin user "Andrej" against the deployed Cognito user
- * pool referenced by the project's amplify_outputs.json.
+ * Seeds an admin user into the Cognito user pool referenced by
+ * amplify_outputs.json.
  *
  * Run AFTER the first successful `npx ampx sandbox` (or pipeline deploy):
  *
- *   ANDREJ_EMAIL=andrej@example.com npx tsx amplify/seed/seed-admin.ts
+ *   ADMIN_EMAIL=you@example.com npm run seed:admin
  *
  * The script is idempotent — if the user already exists, it just ensures
  * they are in the ADMIN group and prints the current status.
@@ -50,8 +50,11 @@ async function main(): Promise<void> {
     );
   }
 
-  const email = process.env.ANDREJ_EMAIL ?? 'andrej@example.com';
-  const displayName = process.env.ANDREJ_NAME ?? 'Andrej';
+  const email = process.env.ADMIN_EMAIL;
+  const displayName = process.env.ADMIN_NAME ?? 'Admin';
+  if (!email) {
+    throw new Error('Set ADMIN_EMAIL=you@example.com before running this script.');
+  }
   const cognito = new CognitoIdentityProviderClient({ region });
 
   let created = false;
