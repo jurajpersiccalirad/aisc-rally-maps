@@ -193,7 +193,15 @@ export const handler = async (event: AppSyncEvent): Promise<unknown> => {
   if (!USER_POOL_ID) {
     throw new Error('USER_POOL_ID environment variable is missing.');
   }
-  const groups = event.identity?.groups ?? [];
+  // identity.groups is populated by AppSync from the Cognito token but can
+  // arrive as null when the claim is absent or the resolver serialises it
+  // differently. Fall back to the raw JWT claims object.
+  const groups: string[] =
+    Array.isArray(event.identity?.groups)
+      ? event.identity!.groups as string[]
+      : Array.isArray(event.identity?.claims?.['cognito:groups'])
+        ? event.identity!.claims!['cognito:groups'] as string[]
+        : [];
   if (!groups.includes('ADMIN')) {
     throw new Error('Forbidden: ADMIN group required.');
   }
