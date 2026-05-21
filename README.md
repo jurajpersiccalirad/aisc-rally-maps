@@ -135,8 +135,18 @@ Modern Chromium / Firefox / Safari. Requires File API, DOMParser, ES2022. No IE.
 - **C10** Amplify Gen 2 backend (Cognito groups, AppSync schema, S3) ✓
 - **C11** Login UI + Zustand auth store + role-gated routes ✓
 - **C12** Send-for-publishing + admin event/user panels + Andrej seed ✓
-- **C13** Admin file inspection — admin can download and preview the submitted ZIP/project JSON directly from the review queue
-- **C14** User auto-save — periodically persist the working project to `localStorage` and offer to restore it on next open, so progress survives browser crashes, power loss, or connectivity drops
+- **C13** Admin file inspection — inline preview of stages/tracks/points from project JSON ✓
+- **C14** User auto-save — debounced `localStorage` save + restore banner on next open ✓
+- **C15** User event dashboard — "My Events" panel with status badges and downloadable approved ZIP ✓
+- **C16** Reject reason visible to users — rejection note shown on the user dashboard ✓
+- **C17** Admin event search & filter — text search + per-status toggle pills ✓
+- **C18** Bulk approve/reject — checkboxes + "Select all SUBMITTED" + batch actions ✓
+- **C19** Audit log — per-event timeline of status changes with actor and timestamp ✓
+- **C20** Version history browser — "Group by name" view shows all versions of each event ✓
+- **C21** In-app diff — Compare two events: stage table with added/removed/buffer/crop changes ✓
+- **C22** Email notifications — Lambda + SES wired; requires SES verified sender address to activate
+- **C23** S3 lifecycle — user-submitted ZIPs auto-expire after 180 days ✓
+- **C24** Export settings persistence — numeric/string export options saved to `localStorage` ✓
 
 ## License
 
