@@ -46,7 +46,7 @@ export function AdminPage({ onClose }: { onClose: () => void }) {
       </div>
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-4xl mx-auto">
-          {tab === 'events' ? <AdminEventList /> : <AdminUserList />}
+          {tab === 'events' ? <AdminEventList onClose={onClose} /> : <AdminUserList />}
         </div>
       </div>
     </main>

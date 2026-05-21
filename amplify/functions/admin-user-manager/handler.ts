@@ -170,23 +170,34 @@ async function setRole(
 
 /**
  * Single AppSync handler discriminated by the operation's field name.
+ *
+ * The Amplify Gen 2 VTL function-resolver template sends:
+ *   { typeName, fieldName, arguments, identity, source, request, prev }
+ * i.e. fieldName is at the TOP LEVEL — there is no `info` wrapper.
  * Authorization is enforced at the schema level via `allow.group('ADMIN')`;
- * we double-check here for defence in depth.
+ * we double-check here via identity.groups (Cognito groups) for defence in
+ * depth.
  */
 interface AppSyncEvent {
+  /** Top-level fieldName injected by Amplify's VTL resolver template. */
+  fieldName?: string;
+  typeName?: string;
   arguments: Record<string, unknown>;
-  identity?: { groups?: string[] };
-  info?: { fieldName?: string };
+  identity?: {
+    groups?: string[];
+    claims?: Record<string, unknown>;
+  };
 }
 
 export const handler = async (event: AppSyncEvent): Promise<unknown> => {
   if (!USER_POOL_ID) {
     throw new Error('USER_POOL_ID environment variable is missing.');
   }
-  if (!event.identity?.groups?.includes('ADMIN')) {
+  const groups = event.identity?.groups ?? [];
+  if (!groups.includes('ADMIN')) {
     throw new Error('Forbidden: ADMIN group required.');
   }
-  const field = event.info?.fieldName;
+  const field = event.fieldName;
   const args = event.arguments;
   switch (field) {
     case 'adminListUsers':

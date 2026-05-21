@@ -1,14 +1,17 @@
 import { getUrl } from 'aws-amplify/storage';
 import { useCallback, useEffect, useState } from 'react';
 import type { Schema } from '../../../amplify/data/resource';
+import { deserializeProject } from '../../export/projectJson';
 import { getClient } from '../../lib/amplify-client';
+import { useProjectDispatch } from '../../state/useProject';
 
 type EventRow = Schema['Event']['type'];
 type Status = NonNullable<EventRow['status']>;
 
 const STATUS_ORDER: Status[] = ['SUBMITTED', 'PUBLISHED', 'REJECTED', 'DRAFT'];
 
-export function AdminEventList() {
+export function AdminEventList({ onClose }: { onClose?: () => void }) {
+  const dispatch = useProjectDispatch();
   const [events, setEvents] = useState<EventRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +74,30 @@ export function AdminEventList() {
     }
   };
 
+  const openInEditor = async (row: EventRow) => {
+    if (!row.projectJsonKey) {
+      setError('No project JSON available for this event.');
+      return;
+    }
+    setBusyId(row.id);
+    try {
+      const { url } = await getUrl({
+        path: row.projectJsonKey,
+        options: { expiresIn: 300 },
+      });
+      const res = await fetch(url.toString());
+      if (!res.ok) throw new Error(`Failed to fetch project JSON: ${res.status}`);
+      const text = await res.text();
+      const loaded = deserializeProject(text);
+      dispatch({ type: 'LOAD_PROJECT_JSON', state: loaded });
+      onClose?.();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   const grouped = new Map<Status, EventRow[]>();
   for (const e of events) {
     const s = (e.status ?? 'DRAFT') as Status;
@@ -119,6 +146,11 @@ export function AdminEventList() {
                         <div className="flex-1 min-w-0">
                           <div className="font-medium truncate">
                             {row.eventName}
+                            {row.version && (
+                              <span className="ml-2 text-[11px] font-normal text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                                {row.version}
+                              </span>
+                            )}
                           </div>
                           <div className="text-[11px] text-slate-500">
                             {row.ownerEmail} · {row.stageCount ?? 0} stages ·{' '}
@@ -135,6 +167,17 @@ export function AdminEventList() {
                             className="text-xs px-2 py-1 rounded border border-slate-300 hover:bg-slate-50"
                           >
                             Download ZIP
+                          </button>
+                        )}
+                        {row.projectJsonKey && (
+                          <button
+                            type="button"
+                            disabled={busyId === row.id}
+                            onClick={() => void openInEditor(row)}
+                            className="text-xs px-2 py-1 rounded border border-blue-300 text-blue-700 hover:bg-blue-50 disabled:opacity-50"
+                            title="Load this event into the editor as a new version"
+                          >
+                            Open
                           </button>
                         )}
                         {status === 'SUBMITTED' && (

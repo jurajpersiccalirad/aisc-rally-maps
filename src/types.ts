@@ -70,6 +70,8 @@ export interface SourceFile {
 
 export interface ProjectState {
   eventName: string;
+  /** Human-readable version label for this event snapshot, e.g. "v1", "Final". */
+  version: string;
   sourceFiles: SourceFile[];
   tracks: ParsedTrack[];
   points: ParsedPoint[];

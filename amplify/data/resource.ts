@@ -21,6 +21,8 @@ const schema = a.schema({
       ownerId: a.string().required(),
       ownerEmail: a.string().required(),
       eventName: a.string().required(),
+      /** Human-readable version label, e.g. "v1", "Final". */
+      version: a.string(),
       status: a.enum(['DRAFT', 'SUBMITTED', 'PUBLISHED', 'REJECTED']),
       projectJsonKey: a.string(),
       exportZipKey: a.string(),
@@ -33,7 +35,7 @@ const schema = a.schema({
     })
     .authorization((allow) => [
       allow.ownerDefinedIn('ownerId').to(['create', 'read', 'update', 'delete']),
-      allow.group('ADMIN').to(['read', 'update', 'delete']),
+      allow.group('ADMIN').to(['create', 'read', 'update', 'delete']),
     ])
     .secondaryIndexes((index) => [
       index('status').sortKeys(['submittedAt']).name('byStatus'),

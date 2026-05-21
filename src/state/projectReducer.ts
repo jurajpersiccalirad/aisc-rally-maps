@@ -12,6 +12,7 @@ import { newId } from '../lib/id';
 
 export const initialProjectState: ProjectState = {
   eventName: '',
+  version: '',
   sourceFiles: [],
   tracks: [],
   points: [],
@@ -25,6 +26,7 @@ export type ProjectAction =
   | { type: 'LOAD_PROJECT_JSON'; state: ProjectState }
   | { type: 'RESET' }
   | { type: 'SET_EVENT_NAME'; name: string }
+  | { type: 'SET_VERSION'; version: string }
   | { type: 'ADD_STAGE'; trackId: string }
   | { type: 'ADD_ALL_TRACKS_AS_STAGES' }
   | { type: 'ADD_TRACK_TO_STAGE'; stageId: string; trackId: string }
@@ -134,6 +136,8 @@ export function projectReducer(
       return initialProjectState;
     case 'SET_EVENT_NAME':
       return { ...state, eventName: action.name };
+    case 'SET_VERSION':
+      return { ...state, version: action.version };
     case 'ADD_STAGE': {
       if (allStagedTrackIds(state.stages).has(action.trackId)) return state;
       const track = state.tracks.find((t) => t.id === action.trackId);
