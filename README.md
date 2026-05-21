@@ -147,6 +147,18 @@ Modern Chromium / Firefox / Safari. Requires File API, DOMParser, ES2022. No IE.
 - **C22** Email notifications — Lambda + SES wired; requires SES verified sender address to activate
 - **C23** S3 lifecycle — user-submitted ZIPs auto-expire after 180 days ✓
 - **C24** Export settings persistence — numeric/string export options saved to `localStorage` ✓
+- **C25** Mandatory point validation — Start, Finish, and Stop Control required per stage; missing
+  points block export and trigger a "pick on map" assignment mode
+- **C26** SSS category removed — SSS keywords mapped to Start; eliminates ambiguity between
+  Super Special Stage starts and regular starts; existing projects migrated on load
+- **C27** In-app feedback — users submit bug reports / feature requests from within the app;
+  stored in DynamoDB; visible in admin panel and pullable locally for roadmap planning
+- **C28** Deployment planner — logistics route planner for stop-control delivery runs:
+  - Origin point (service park / rally control) + ordered visit sequence builder
+  - Stage schedule input + tunable road-closure windows (public T−2h, org T−1h, safety T−30min)
+  - Two routes per leg via OSRM: Route A (via stage, time-gated) and Route B (avoids stage corridor)
+  - Timeline view with departure windows colour-coded green/amber/red
+  - Exportable trip sheet (CSV/PDF)
 
 ## License
 

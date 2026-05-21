@@ -1,6 +1,6 @@
 import { defineBackend } from '@aws-amplify/backend';
-import { Duration } from 'aws-cdk-lib';
 import { PolicyStatement } from 'aws-cdk-lib/aws-iam';
+import { CfnBucket } from 'aws-cdk-lib/aws-s3';
 import { auth } from './auth/resource';
 import { data } from './data/resource';
 import { storage } from './storage/resource';
@@ -51,10 +51,15 @@ backend.emailNotifier.resources.lambda.addToRolePolicy(
 // ── S3 lifecycle rules (C23) ──────────────────────────────────────────────────
 // Expire user-submitted drafts/ZIPs after 180 days to control storage costs.
 // Published assets (published/*) are retained indefinitely.
-const { bucket } = backend.storage.resources;
-bucket.addLifecycleRule({
-  id: 'expire-user-submissions',
-  prefix: 'users/',
-  expiration: Duration.days(180),
-  enabled: true,
-});
+// IBucket doesn't expose addLifecycleRule — go through the L1 CfnBucket.
+const cfnBucket = backend.storage.resources.bucket.node.defaultChild as CfnBucket;
+cfnBucket.lifecycleConfiguration = {
+  rules: [
+    {
+      id: 'expire-user-submissions',
+      prefix: 'users/',
+      status: 'Enabled',
+      expirationInDays: 180,
+    },
+  ],
+};
