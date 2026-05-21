@@ -1,5 +1,6 @@
 import { a, defineData, type ClientSchema } from '@aws-amplify/backend';
 import { adminUserManager } from '../functions/admin-user-manager/resource';
+import { emailNotifier } from '../functions/email-notifier/resource';
 
 /**
  * AppSync schema.
@@ -32,6 +33,8 @@ const schema = a.schema({
       publishedAt: a.datetime(),
       reviewedBy: a.string(),
       reviewNote: a.string(),
+      /** JSON-serialised AuditEntry[] appended on each status change. */
+      auditLog: a.string(),
     })
     .authorization((allow) => [
       allow.ownerDefinedIn('ownerId').to(['create', 'read', 'update', 'delete']),
@@ -98,6 +101,17 @@ const schema = a.schema({
     .returns(a.json())
     .authorization((allow) => [allow.group('ADMIN')])
     .handler(a.handler.function(adminUserManager)),
+
+  sendNotification: a
+    .mutation()
+    .arguments({
+      to: a.string().required(),
+      subject: a.string().required(),
+      body: a.string().required(),
+    })
+    .returns(a.json())
+    .authorization((allow) => [allow.group('ADMIN')])
+    .handler(a.handler.function(emailNotifier)),
 });
 
 export type Schema = ClientSchema<typeof schema>;

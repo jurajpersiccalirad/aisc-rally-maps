@@ -21,6 +21,7 @@
     "seed:dev": "tsx amplify/seed/seed-dev-users.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-ses": "^3.1052.0",
     "@tmcw/togeojson": "^5.8.1",
     "@turf/turf": "^7.1.0",
     "aws-amplify": "^6.17.0",

@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { ProjectProvider } from './state/ProjectContext';
 import { useAuth } from './state/authStore';
 import { useProject } from './state/useProject';
+import { useAutoSave } from './state/useAutoSave';
 import type { PointCategory } from './types';
 import { DropZone } from './ui/DropZone';
 import { EventNameInput } from './ui/EventNameInput';
@@ -9,10 +10,12 @@ import { ExportButton } from './ui/ExportButton';
 import { MapView } from './ui/MapView';
 import { PointList } from './ui/PointList';
 import { PublishButton } from './ui/PublishButton';
+import { RestoreBanner } from './ui/RestoreBanner';
 import { SaveLoadButtons } from './ui/SaveLoadButtons';
 import { StagesPanel } from './ui/StagesPanel';
 import { TrackList } from './ui/TrackList';
 import { AdminPage } from './ui/admin/AdminPage';
+import { UserEventList } from './ui/UserEventList';
 import { RequireAuth } from './ui/auth/RequireAuth';
 import { UserBadge } from './ui/auth/UserBadge';
 import type {
@@ -26,6 +29,8 @@ import type {
 function Workspace() {
   const state = useProject();
   const hasFile = state.sourceFiles.length > 0;
+
+  useAutoSave(state);
 
   const [hover, setHover] = useState<HoverState | null>(null);
   const [cropMode, setCropMode] = useState<CropMode>(null);
@@ -124,30 +129,37 @@ function Workspace() {
   );
 }
 
+type Panel = 'editor' | 'admin' | 'myevents';
+
 function Shell() {
   const { user } = useAuth();
-  const [adminOpen, setAdminOpen] = useState(false);
+  const [panel, setPanel] = useState<Panel>('editor');
   const isAdmin = user?.role === 'ADMIN';
 
   return (
     <div className="h-screen flex flex-col">
       <header className="flex-shrink-0 border-b border-slate-200 bg-white px-6 py-2 flex items-center justify-between gap-4">
         <div>
-          <h1 className="text-lg font-semibold tracking-tight">
-            AISC Rally Maps
-          </h1>
-          <span className="text-[11px] text-slate-500">
-            KMZ / KML / GPX → Calirad AISC
-          </span>
+          <h1 className="text-lg font-semibold tracking-tight">AISC Rally Maps</h1>
+          <span className="text-[11px] text-slate-500">KMZ / KML / GPX → Calirad AISC</span>
         </div>
         <div className="flex items-center gap-2">
-          {!adminOpen && <PublishButton />}
-          {!adminOpen && <SaveLoadButtons />}
-          {!adminOpen && <ExportButton />}
-          {isAdmin && !adminOpen && (
+          {panel === 'editor' && <PublishButton />}
+          {panel === 'editor' && <SaveLoadButtons />}
+          {panel === 'editor' && <ExportButton />}
+          {user && panel === 'editor' && (
             <button
               type="button"
-              onClick={() => setAdminOpen(true)}
+              onClick={() => setPanel('myevents')}
+              className="text-xs px-3 py-1.5 rounded border border-slate-300 hover:bg-slate-50"
+            >
+              My Events
+            </button>
+          )}
+          {isAdmin && panel === 'editor' && (
+            <button
+              type="button"
+              onClick={() => setPanel('admin')}
               className="text-xs px-3 py-1.5 rounded bg-slate-900 text-white hover:bg-slate-700"
             >
               Admin
@@ -157,15 +169,20 @@ function Shell() {
         </div>
       </header>
 
-      {adminOpen ? <AdminPage onClose={() => setAdminOpen(false)} /> : <Workspace />}
+      {panel === 'editor' && <RestoreBanner />}
+
+      {panel === 'admin' ? (
+        <AdminPage onClose={() => setPanel('editor')} />
+      ) : panel === 'myevents' ? (
+        <UserEventList onClose={() => setPanel('editor')} />
+      ) : (
+        <Workspace />
+      )}
 
       <footer className="flex-shrink-0 border-t border-slate-200 bg-white px-6 py-2 text-xs text-slate-500 flex justify-between">
         <span>build {__BUILD_HASH__}</span>
         <span>
-          <a
-            href="https://github.com/jurajpersiccalirad/aisc-rally-maps"
-            className="hover:underline"
-          >
+          <a href="https://github.com/jurajpersiccalirad/aisc-rally-maps" className="hover:underline">
             github
           </a>
         </span>

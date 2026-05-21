@@ -11,6 +11,41 @@ interface Props {
   onClose: () => void;
 }
 
+// ── export settings persistence (C24) ────────────────────────────────────────
+
+const SETTINGS_KEY = 'aisc_export_settings';
+
+interface SavedSettings {
+  stageStartIdStr: string;
+  eventIdStr: string;
+  startDate: string;
+  startTime: string;
+  endDate: string;
+  endTime: string;
+  unitSystem: 'imperial' | 'metric';
+  deviceStartIdStr: string;
+  credStartIdStr: string;
+  credKey: string;
+  appUrl: string;
+  credUseEventId: boolean;
+  soCountStr: string;
+  adminCountStr: string;
+  viewerCountStr: string;
+}
+
+function loadSettings(): Partial<SavedSettings> {
+  try { return JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? '{}') as Partial<SavedSettings>; }
+  catch { return {}; }
+}
+
+function s(key: keyof SavedSettings, fallback: string): string {
+  return (loadSettings()[key] as string | undefined) ?? fallback;
+}
+function b(key: keyof SavedSettings, fallback: boolean): boolean {
+  const v = loadSettings()[key];
+  return v === undefined ? fallback : Boolean(v);
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 function todayStr() {
@@ -285,30 +320,45 @@ export function ExportPreview({ onClose }: Props) {
   const [hashProgress, setHashProgress] = useState<{ done: number; total: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Stage / Event
-  const [stageStartIdStr, setStageStartIdStr] = useState('1');
-  const [eventIdStr, setEventIdStr] = useState('1');
-  const [startDate, setStartDate] = useState(todayStr());
-  const [startTime, setStartTime] = useState('08:00');
-  const [endDate, setEndDate] = useState(todayStr());
-  const [endTime, setEndTime] = useState('20:00');
-  const [unitSystem, setUnitSystem] = useState<'imperial' | 'metric'>('metric');
+  // Stage / Event — initialised from localStorage (C24)
+  const [stageStartIdStr, setStageStartIdStr] = useState(() => s('stageStartIdStr', '1'));
+  const [eventIdStr, setEventIdStr] = useState(() => s('eventIdStr', '1'));
+  const [startDate, setStartDate] = useState(() => s('startDate', todayStr()));
+  const [startTime, setStartTime] = useState(() => s('startTime', '08:00'));
+  const [endDate, setEndDate] = useState(() => s('endDate', todayStr()));
+  const [endTime, setEndTime] = useState(() => s('endTime', '20:00'));
+  const [unitSystem, setUnitSystem] = useState<'imperial' | 'metric'>(
+    () => (s('unitSystem', 'metric') as 'imperial' | 'metric'),
+  );
 
   // Devices
-  const [deviceStartIdStr, setDeviceStartIdStr] = useState('1');
+  const [deviceStartIdStr, setDeviceStartIdStr] = useState(() => s('deviceStartIdStr', '1'));
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<Set<string>>(new Set());
 
   // Credentials
-  const [credStartIdStr, setCredStartIdStr] = useState('1');
-  const [credKey, setCredKey] = useState('');
-  const [appUrl, setAppUrl] = useState('');
-  const [credUseEventId, setCredUseEventId] = useState(true);
-  const [soCountStr, setSoCountStr] = useState('3');
-  const [adminCountStr, setAdminCountStr] = useState('0');
-  const [viewerCountStr, setViewerCountStr] = useState('3');
+  const [credStartIdStr, setCredStartIdStr] = useState(() => s('credStartIdStr', '1'));
+  const [credKey, setCredKey] = useState(() => s('credKey', ''));
+  const [appUrl, setAppUrl] = useState(() => s('appUrl', ''));
+  const [credUseEventId, setCredUseEventId] = useState(() => b('credUseEventId', true));
+  const [soCountStr, setSoCountStr] = useState(() => s('soCountStr', '3'));
+  const [adminCountStr, setAdminCountStr] = useState(() => s('adminCountStr', '0'));
+  const [viewerCountStr, setViewerCountStr] = useState(() => s('viewerCountStr', '3'));
   const [credRows, setCredRows] = useState<CredRow[]>(() =>
-    buildRows('', 3, 0, 3, []),
+    buildRows(s('credKey', ''), parseInt(s('soCountStr', '3')) || 3, 0, parseInt(s('viewerCountStr', '3')) || 3, []),
   );
+
+  // Persist settings whenever they change (C24)
+  useEffect(() => {
+    const settings: SavedSettings = {
+      stageStartIdStr, eventIdStr, startDate, startTime, endDate, endTime,
+      unitSystem, deviceStartIdStr, credStartIdStr, credKey, appUrl,
+      credUseEventId, soCountStr, adminCountStr, viewerCountStr,
+    };
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); }
+    catch { /* quota exceeded */ }
+  }, [stageStartIdStr, eventIdStr, startDate, startTime, endDate, endTime,
+      unitSystem, deviceStartIdStr, credStartIdStr, credKey, appUrl,
+      credUseEventId, soCountStr, adminCountStr, viewerCountStr]);
 
   // Rebuild usernames when key or counts change; preserve passwords
   useEffect(() => {
