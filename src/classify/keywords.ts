@@ -39,9 +39,10 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     styleUrl: /finish_/,
   },
   {
-    // Stop control — \bstop\b anywhere; "SS2 Stop Control", "STOP SS3", etc.
+    // Stop control — \bstop (no trailing \b) so "STOP2/6", "STOP1" also match.
+    // Left boundary prevents matching inside words like "unstoppable".
     category: 'stop',
-    text: /\bstop\b|sign\s+stop\s+red|se[ñn]a.*stop/,
+    text: /\bstop|sign\s+stop\s+red|se[ñn]a.*stop/,
     styleUrl: /stop_|sign.*stop/,
   },
   {

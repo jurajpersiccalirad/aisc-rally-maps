@@ -16,6 +16,8 @@ const cases: Case[] = [
   { name: 'FF SS2/5', expected: 'finish' },
   { name: 'FF1/5',   expected: 'finish' },   // digit immediately after FF
   { name: 'FF2',     expected: 'finish' },
+  { name: 'STOP2/6', expected: 'stop' },     // digit immediately after STOP
+  { name: 'Stop1',   expected: 'stop' },
   { name: 'Stop SS1/5', expected: 'stop' },
   { name: 'ATC SS1/5', expected: 'atc' },
   { name: 'PC A / PC D', expected: 'pc' },
