@@ -69,6 +69,9 @@ export function LoginPage() {
                 className="mt-1 w-full rounded border border-slate-300 px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
               />
             </label>
+            <p className="text-[11px] text-slate-500">
+              Must be 8+ characters with uppercase, lowercase, number, and symbol (e.g. <span className="font-mono">Rally2025!</span>).
+            </p>
             {newPw && newPw2 && newPw !== newPw2 && (
               <p className="text-xs text-red-600">Passwords do not match.</p>
             )}
@@ -86,7 +89,8 @@ export function LoginPage() {
             <label className="block">
               <span className="text-xs font-medium text-slate-700">Email</span>
               <input
-                type="email"
+                type="text"
+                inputMode="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 autoFocus

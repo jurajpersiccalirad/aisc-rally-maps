@@ -151,7 +151,8 @@ export function AdminUserList() {
         </h3>
         <div className="flex flex-wrap gap-2">
           <input
-            type="email"
+            type="text"
+                inputMode="email"
             value={newEmail}
             onChange={(e) => setNewEmail(e.target.value)}
             placeholder="email"
