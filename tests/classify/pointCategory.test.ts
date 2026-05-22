@@ -51,6 +51,16 @@ const cases: Case[] = [
   // Ambiguity protection — "TC" only when isolated
   { name: 'TC SS1', expected: 'atc' },
   { name: 'BTC office', expected: 'other' },
+
+  // Feedback: bare SS reference → start when no better keyword
+  { name: 'SS1', expected: 'start' },
+  { name: 'SS 2/5', expected: 'start' },
+  { name: 'SS3-4', expected: 'start' },
+  // Should NOT override more specific rules
+  { name: 'SS1 Stop Control', expected: 'stop' },
+  { name: 'SS2 FF', expected: 'finish' },
+  { name: 'SS3 TC', expected: 'atc' },
+  { name: 'SS4 Chicane', expected: 'chicane' },
 ];
 
 describe('classifyPoint', () => {

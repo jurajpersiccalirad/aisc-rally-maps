@@ -79,4 +79,10 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     category: 'scrutineering',
     text: /\bscrut|verifica|technick.*p[rř]ej/,
   },
+  {
+    // Fallback: bare stage reference "SS1", "SS 2/5", "SS3-4" with no other
+    // keyword — treat as start. Placed last so specific rules above win first.
+    category: 'start',
+    text: /\bss\s*\d/,
+  },
 ];
