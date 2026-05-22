@@ -1,4 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  bearing as turfBearing,
+  destination as turfDestination,
+  distance as turfDistance,
+  lineString,
+  point as turfPoint,
+  pointToLineDistance,
+} from '@turf/turf';
 import type { LngLatAlt, ParsedPoint } from '../types';
 import { CATEGORY_META, FACILITY_CATEGORIES } from '../classify/categoryMeta';
 import {
@@ -32,8 +40,12 @@ interface ClosureParams {
 interface RoutedLeg {
   from: string;
   to: string;
+  /** Route A goes explicitly along the nearby stage (via stage waypoints). */
   routeA: OsrmRoute | null;
+  /** Route B goes around the stage via a perpendicular-offset waypoint. */
   routeB: OsrmRoute | null;
+  /** Name of the stage used for routing decisions, or null if no stage nearby. */
+  viaStage: string | null;
   error: string | null;
 }
 
@@ -75,6 +87,88 @@ function safeUntil(stageStartTime: string, closureMinutes: number, date: string)
   return new Date(start.getTime() - closureMinutes * 60_000);
 }
 
+// ── routing helpers ───────────────────────────────────────────────────────────
+
+/** Sample N evenly-spaced coords from a polyline (always includes first+last). */
+function sampleCoords(coords: LngLatAlt[], n: number): LngLatAlt[] {
+  if (coords.length <= n) return coords;
+  const result: LngLatAlt[] = [];
+  for (let i = 0; i < n; i++) {
+    const idx = Math.round((i / (n - 1)) * (coords.length - 1));
+    result.push(coords[idx]);
+  }
+  return result;
+}
+
+/** Find the stage whose polyline is nearest to the midpoint of a leg, within maxKm. */
+function findNearbyStage(
+  from: LngLatAlt,
+  to: LngLatAlt,
+  stages: StageGeo[],
+  maxKm = 8,
+): StageGeo | null {
+  const mid = turfPoint([(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]);
+  let best: StageGeo | null = null;
+  let bestDist = maxKm;
+  for (const s of stages) {
+    if (s.coords.length < 2) continue;
+    const line = lineString(s.coords.map((c) => [c[0], c[1]]));
+    const d = pointToLineDistance(mid, line, { units: 'kilometers' });
+    if (d < bestDist) { bestDist = d; best = s; }
+  }
+  return best;
+}
+
+/**
+ * Build waypoints for a route that explicitly follows the stage.
+ * Determines stage direction by comparing distances from `from` to
+ * the stage start vs end — routes start-to-end or end-to-start accordingly.
+ */
+function viaStageWaypoints(
+  from: LngLatAlt,
+  stage: StageGeo,
+  to: LngLatAlt,
+): LngLatAlt[] {
+  const start = stage.coords[0];
+  const end = stage.coords[stage.coords.length - 1];
+  const fromPt = turfPoint([from[0], from[1]]);
+  const dStart = turfDistance(fromPt, turfPoint([start[0], start[1]]), { units: 'kilometers' });
+  const dEnd = turfDistance(fromPt, turfPoint([end[0], end[1]]), { units: 'kilometers' });
+  const ordered = dEnd < dStart ? [...stage.coords].reverse() : stage.coords;
+  // 6 sampled interior points keeps well under OSRM's 25-waypoint limit
+  const sampled = sampleCoords(ordered, 8).slice(1, -1);
+  return [from, ...sampled, to];
+}
+
+/**
+ * Build waypoints for a route that avoids the stage by detouring through
+ * a point offset ~3 km perpendicular to the stage midpoint, on the side
+ * furthest from the direct from→to line.
+ */
+function avoidStageWaypoints(
+  from: LngLatAlt,
+  stage: StageGeo,
+  to: LngLatAlt,
+): LngLatAlt[] {
+  const midIdx = Math.floor(stage.coords.length / 2);
+  const midPt = stage.coords[midIdx];
+  const prevPt = stage.coords[Math.max(0, midIdx - 1)];
+  const stageBearing = turfBearing(
+    turfPoint([prevPt[0], prevPt[1]]),
+    turfPoint([midPt[0], midPt[1]]),
+  );
+  const OFFSET_KM = 3;
+  const offA = turfDestination(turfPoint([midPt[0], midPt[1]]), OFFSET_KM, (stageBearing + 90) % 360, { units: 'kilometers' });
+  const offB = turfDestination(turfPoint([midPt[0], midPt[1]]), OFFSET_KM, (stageBearing - 90 + 360) % 360, { units: 'kilometers' });
+  // Pick the offset that is furthest from the midpoint of the direct from→to line
+  const directMid = turfPoint([(from[0] + to[0]) / 2, (from[1] + to[1]) / 2]);
+  const dA = turfDistance(directMid, offA, { units: 'kilometers' });
+  const dB = turfDistance(directMid, offB, { units: 'kilometers' });
+  const off = dA > dB ? offA : offB;
+  const offCoord: LngLatAlt = [off.geometry.coordinates[0], off.geometry.coordinates[1]];
+  return [from, offCoord, to];
+}
+
 // ── map ───────────────────────────────────────────────────────────────────────
 
 interface RouteMapProps {
@@ -84,9 +178,10 @@ interface RouteMapProps {
   stageGeos: StageGeo[];
   importantPoints: ParsedPoint[];
   hiddenLegs: Set<number>;
+  hiddenStageIds: Set<string>;
 }
 
-function RouteMap({ legs, stops, allPoints, stageGeos, importantPoints, hiddenLegs }: RouteMapProps) {
+function RouteMap({ legs, stops, allPoints, stageGeos, importantPoints, hiddenLegs, hiddenStageIds }: RouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const layersRef = useRef<unknown[]>([]);
@@ -122,7 +217,7 @@ function RouteMap({ legs, stops, allPoints, stageGeos, importantPoints, hiddenLe
 
       // ── Stage polylines ────────────────────────────────────────────────────
       for (const stage of stageGeos) {
-        if (stage.coords.length < 2) continue;
+        if (stage.coords.length < 2 || hiddenStageIds.has(stage.id)) continue;
         const latlngs = stage.coords.map(([lng, lat]) => [lat, lng] as [number, number]);
         bounds.push(...latlngs);
         const poly = L.polyline(latlngs, {
@@ -200,7 +295,7 @@ function RouteMap({ legs, stops, allPoints, stageGeos, importantPoints, hiddenLe
 
       if (bounds.length > 0) map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
     })();
-  }, [legs, stops, allPoints, stageGeos, importantPoints, hiddenLegs]);
+  }, [legs, stops, allPoints, stageGeos, importantPoints, hiddenLegs, hiddenStageIds]);
 
   return <div ref={mapRef} className="w-full rounded border border-slate-200 z-0" style={{ height: '520px' }} />;
 }
@@ -225,6 +320,7 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const [hiddenLegs, setHiddenLegs] = useState<Set<number>>(new Set());
+  const [hiddenStageIds, setHiddenStageIds] = useState<Set<string>>(new Set());
 
   const closureMinutes = effectiveClosureMinutes(closure);
 
@@ -272,12 +368,39 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
       const from = waypoints[i];
       const to = waypoints[i + 1];
       try {
-        const result = await queryOsrm([from.point.coord, to.point.coord], true);
+        const nearby = findNearbyStage(from.point.coord, to.point.coord, stageGeos);
+        let routeA: OsrmRoute | null = null;
+        let routeB: OsrmRoute | null = null;
+
+        if (nearby) {
+          // Route A: explicitly follows the stage road via sampled waypoints
+          const wpA = viaStageWaypoints(from.point.coord, nearby, to.point.coord);
+          const resA = await queryOsrm(wpA, 0);
+          routeA = resA.routes[0] ?? null;
+
+          // Route B: detours around the stage via a perpendicular-offset waypoint
+          const wpB = avoidStageWaypoints(from.point.coord, nearby, to.point.coord);
+          try {
+            const resB = await queryOsrm(wpB, 0);
+            routeB = resB.routes[0] ?? null;
+          } catch {
+            // If avoid-route fails (no road that side), fall back to OSRM alternatives
+            const resFallback = await queryOsrm([from.point.coord, to.point.coord], 3);
+            routeB = resFallback.routes[1] ?? resFallback.routes[0] ?? null;
+          }
+        } else {
+          // No stage nearby — request up to 3 alternatives from OSRM
+          const res = await queryOsrm([from.point.coord, to.point.coord], 3);
+          routeA = res.routes[0] ?? null;
+          routeB = res.routes[1] ?? null;
+        }
+
         newLegs.push({
           from: pointLabel(from.point),
           to: pointLabel(to.point),
-          routeA: result.routes[0] ?? null,
-          routeB: result.routes[1] ?? null,
+          routeA,
+          routeB,
+          viaStage: nearby?.name ?? null,
           error: null,
         });
       } catch (e) {
@@ -285,6 +408,7 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
           from: pointLabel(from.point),
           to: pointLabel(to.point),
           routeA: null, routeB: null,
+          viaStage: null,
           error: e instanceof Error ? e.message : String(e),
         });
       }
@@ -438,16 +562,37 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
           )}
 
           {/* Map — always visible, tall */}
-          <div className="space-y-1">
-            <div className="flex items-center gap-3 text-[11px] text-slate-500">
-              <span className="flex items-center gap-1"><span className="w-5 h-0.5 bg-blue-600 inline-block rounded" /> Route A (direct)</span>
-              <span className="flex items-center gap-1"><span className="w-5 inline-block border-t-2 border-red-500 border-dashed" /> Route B (alternative)</span>
-              {stageGeos.map((s) => (
-                <span key={s.id} className="flex items-center gap-1">
-                  <span className="w-5 h-1 inline-block rounded" style={{ background: s.color }} />
-                  {s.name}
-                </span>
-              ))}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap items-center gap-2 text-[11px]">
+              <span className="flex items-center gap-1 text-slate-500">
+                <span className="w-5 h-0.5 bg-blue-600 inline-block rounded" />
+                Route A (via stage)
+              </span>
+              <span className="flex items-center gap-1 text-slate-500">
+                <span className="w-5 inline-block border-t-2 border-red-500 border-dashed" />
+                Route B (avoid stage)
+              </span>
+              <span className="text-slate-300">|</span>
+              {stageGeos.map((s) => {
+                const hidden = hiddenStageIds.has(s.id);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setHiddenStageIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(s.id)) next.delete(s.id); else next.add(s.id);
+                      return next;
+                    })}
+                    className={['flex items-center gap-1 px-1.5 py-0.5 rounded border transition-opacity',
+                      hidden ? 'opacity-40 border-slate-300' : 'border-transparent hover:bg-slate-100'].join(' ')}
+                    title={hidden ? `Show ${s.name}` : `Hide ${s.name}`}
+                  >
+                    <span className="w-4 h-1 inline-block rounded" style={{ background: s.color }} />
+                    <span style={{ color: s.color }} className="font-medium">{s.name}</span>
+                  </button>
+                );
+              })}
             </div>
             <RouteMap
               legs={legs}
@@ -456,6 +601,7 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
               stageGeos={stageGeos}
               importantPoints={importantPoints}
               hiddenLegs={hiddenLegs}
+              hiddenStageIds={hiddenStageIds}
             />
           </div>
 
@@ -495,8 +641,18 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
                         <p className="text-red-700 mt-1">Routing failed: {leg.error}</p>
                       ) : (
                         <div className="grid grid-cols-2 gap-x-4 mt-1 text-slate-600">
-                          {leg.routeA && <><span className="text-blue-700 font-medium">Route A</span><span>{formatDistance(leg.routeA.distance)} · {formatDuration(leg.routeA.duration)}</span></>}
-                          {leg.routeB && <><span className="text-red-600 font-medium">Route B</span><span>{formatDistance(leg.routeB.distance)} · {formatDuration(leg.routeB.duration)}</span></>}
+                          {leg.routeA && <>
+                            <span className="text-blue-700 font-medium">
+                              {leg.viaStage ? `Via ${leg.viaStage}` : 'Route A'}
+                            </span>
+                            <span>{formatDistance(leg.routeA.distance)} · {formatDuration(leg.routeA.duration)}</span>
+                          </>}
+                          {leg.routeB && <>
+                            <span className="text-red-600 font-medium">
+                              {leg.viaStage ? `Avoid ${leg.viaStage}` : 'Route B'}
+                            </span>
+                            <span>{formatDistance(leg.routeB.distance)} · {formatDuration(leg.routeB.duration)}</span>
+                          </>}
                           {timing?.departBy && <><span className="font-medium">Close at</span><span>{timing.departBy.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></>}
                         </div>
                       )}

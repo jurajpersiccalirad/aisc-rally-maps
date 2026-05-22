@@ -17,11 +17,13 @@ export interface OsrmResult {
  */
 export async function queryOsrm(
   waypoints: LngLatAlt[],
-  alternatives = true,
+  /** Number of alternatives to request (0 = primary only, 1-3 = up to N alternatives). */
+  alternatives: number | boolean = 1,
 ): Promise<OsrmResult> {
   if (waypoints.length < 2) throw new Error('Need at least 2 waypoints');
   const coords = waypoints.map((w) => `${w[0]},${w[1]}`).join(';');
-  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?alternatives=${alternatives ? 'true' : 'false'}&overview=full&geometries=geojson&steps=false`;
+  const altParam = alternatives === false || alternatives === 0 ? 'false' : String(alternatives);
+  const url = `https://router.project-osrm.org/route/v1/driving/${coords}?alternatives=${altParam}&overview=full&geometries=geojson&steps=false`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`OSRM error ${res.status}: ${await res.text()}`);
   const json = (await res.json()) as { code: string; routes?: OsrmRoute[] };
