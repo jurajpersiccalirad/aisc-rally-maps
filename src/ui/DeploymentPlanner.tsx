@@ -113,17 +113,24 @@ function RouteMap({ legs, stops, points }: {
 
       const bounds: [number, number][] = [];
 
-      // Draw stop markers
-      for (const stop of stops) {
+      // Draw numbered stop markers
+      stops.forEach((stop, idx) => {
         const point = points.find((p) => p.id === stop.pointId);
-        if (!point) continue;
+        if (!point) return;
         const [lng, lat] = point.coord;
         bounds.push([lat, lng]);
-        const marker = L.circleMarker([lat, lng], {
-          radius: 7, color: '#1e293b', weight: 2, fillColor: '#f8fafc', fillOpacity: 1,
-        }).bindTooltip(stop.label ?? pointLabel(point)).addTo(map);
+        const num = idx === 0 ? '⌂' : String(idx);
+        const icon = L.divIcon({
+          html: `<div style="background:#1e293b;color:#fff;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,0.4)">${num}</div>`,
+          className: '',
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+        });
+        const marker = L.marker([lat, lng], { icon })
+          .bindTooltip(`${num}: ${stop.label ?? pointLabel(point)}`)
+          .addTo(map);
         layersRef.current.push(marker);
-      }
+      });
 
       // Draw routes
       for (const leg of legs) {

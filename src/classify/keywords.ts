@@ -10,18 +10,20 @@ export interface CategoryKeywords {
  * Ordered most-specific to least-specific. First match wins.
  * Patterns tested against lower-cased name + description.
  * Languages: English, Spanish, Czech.
+ *
+ * NOTE: avoid ^ anchors — point names commonly carry a stage prefix,
+ * e.g. "SS2 Stop Control" or "SS1 FF". Use \b word-boundary matches instead.
  */
 export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
   {
-    // Flying finish merged into finish (C26 extension) — flying finish is still
-    // a finish line; distinguish only for marshal/safety planning if needed.
+    // Flying finish → finish. \bff\b anywhere in name (e.g. "SS1 FF", "FF SS2/5")
     category: 'finish',
-    text: /flying|^ff\b|\bff\s+ss|fin\s+volante/,
+    text: /\bflying\b|\bff\b|fin\s+volante/,
   },
   {
-    // SSS (Super Special Stage) merged into start (C26)
+    // SSS / Super Special Stage → start
     category: 'start',
-    text: /^sss\b|\bsss\s+\d|super\s+special/,
+    text: /\bsss\b|super\s+special/,
   },
   {
     category: 'start',
@@ -34,25 +36,28 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     styleUrl: /finish_/,
   },
   {
+    // Stop control — \bstop\b anywhere; "SS2 Stop Control", "STOP SS3", etc.
     category: 'stop',
-    text: /^stop\b|\bstop\s+ss|sign\s+stop\s+red|se[ñn]a.*stop/,
+    text: /\bstop\b|sign\s+stop\s+red|se[ñn]a.*stop/,
     styleUrl: /stop_|sign.*stop/,
   },
   {
+    // Chicane — word boundary so "SS1 Chicane A" and "Speed Chicane" both match
     category: 'chicane',
     text: /\bchicanes?\b|speed\s+control\s+chicane/,
   },
   {
     category: 'marshall',
-    text: /\bmarshall?s?\b|\bofficial\s+point\b|\bmarshal\s+post\b/,
+    text: /\bmarshall?s?\b|\bmarshal\s+post\b/,
   },
   {
     category: 'intermediate',
     text: /\bint\.?\s*\d|\bintermedio\b|\bintermedi/,
   },
   {
+    // ATC / TC — \btc\b anywhere (e.g. "SS1 TC", "TC SS2/5")
     category: 'atc',
-    text: /\batc\b|^tc\b|\btc\s+ss/,
+    text: /\batc\b|\btc\b/,
   },
   {
     category: 'pc',
