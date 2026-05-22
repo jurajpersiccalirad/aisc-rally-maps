@@ -353,6 +353,12 @@ export function defaultExportName(
   }
 
   if (!existing.has(base)) return base;
+  const letters = 'abcdefghijklmnopqrstuvwxyz';
+  for (let i = 0; i < letters.length; i++) {
+    const candidate = `${base}-${letters[i]}`;
+    if (!existing.has(candidate)) return candidate;
+  }
+  // Extremely unlikely fallback if all 26 letters are taken
   let n = 2;
   while (existing.has(`${base}-${n}`)) n++;
   return `${base}-${n}`;

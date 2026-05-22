@@ -68,14 +68,14 @@ describe('defaultExportName', () => {
     ).toBe('SS1-5');
   });
 
-  it('dedupes by suffixing -2, -3, ...', () => {
+  it('dedupes by suffixing -a, -b, ...', () => {
     const existing = new Set(['SS7']);
     expect(defaultExportName(track({ id: '3', name: 'SS7' }), existing)).toBe(
-      'SS7-2',
+      'SS7-a',
     );
-    existing.add('SS7-2');
+    existing.add('SS7-a');
     expect(defaultExportName(track({ id: '4', name: 'SS7' }), existing)).toBe(
-      'SS7-3',
+      'SS7-b',
     );
   });
 
