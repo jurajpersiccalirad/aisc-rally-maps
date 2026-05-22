@@ -10,7 +10,7 @@ import { ExportButton } from './ui/ExportButton';
 import { MapView } from './ui/MapView';
 import { PointList } from './ui/PointList';
 import { PublishButton } from './ui/PublishButton';
-import { FeedbackModal } from './ui/FeedbackModal';
+import { FeedbackPanel } from './ui/FeedbackPanel';
 import { RestoreBanner } from './ui/RestoreBanner';
 import { SaveLoadButtons } from './ui/SaveLoadButtons';
 import { StagesPanel } from './ui/StagesPanel';
@@ -131,12 +131,11 @@ function Workspace() {
   );
 }
 
-type Panel = 'editor' | 'admin' | 'myevents' | 'deploy';
+type Panel = 'editor' | 'admin' | 'myevents' | 'deploy' | 'feedback';
 
 function Shell() {
   const { user } = useAuth();
   const [panel, setPanel] = useState<Panel>('editor');
-  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const isAdmin = user?.role === 'ADMIN';
 
   return (
@@ -177,12 +176,11 @@ function Shell() {
               Admin
             </button>
           )}
-          {user && (
+          {user && panel === 'editor' && (
             <button
               type="button"
-              onClick={() => setFeedbackOpen(true)}
+              onClick={() => setPanel('feedback')}
               className="text-xs px-2 py-1.5 rounded border border-slate-300 hover:bg-slate-50"
-              title="Send feedback"
             >
               Feedback
             </button>
@@ -191,7 +189,6 @@ function Shell() {
         </div>
       </header>
 
-      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
       {panel === 'editor' && <RestoreBanner />}
 
       {panel === 'admin' ? (
@@ -200,6 +197,8 @@ function Shell() {
         <UserEventList onClose={() => setPanel('editor')} />
       ) : panel === 'deploy' ? (
         <DeploymentPlanner onClose={() => setPanel('editor')} />
+      ) : panel === 'feedback' ? (
+        <FeedbackPanel onClose={() => setPanel('editor')} />
       ) : (
         <Workspace />
       )}

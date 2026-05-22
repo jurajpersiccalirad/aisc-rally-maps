@@ -109,10 +109,31 @@ const schema = a.schema({
       category: a.enum(['BUG', 'FEATURE', 'OTHER']),
       text: a.string().required(),
       createdAt: a.datetime().required(),
+      resolved: a.boolean(),
+      resolvedAt: a.datetime(),
+      resolvedBy: a.string(),
     })
     .authorization((allow) => [
       allow.ownerDefinedIn('userId').to(['create', 'read']),
-      allow.group('ADMIN').to(['read', 'delete']),
+      allow.group('ADMIN').to(['read', 'update', 'delete']),
+    ]),
+
+  FeedbackComment: a
+    .model({
+      feedbackId: a.string().required(),
+      authorId: a.string().required(),
+      authorEmail: a.string(),
+      isAdmin: a.boolean(),
+      text: a.string().required(),
+      createdAt: a.datetime().required(),
+    })
+    .authorization((allow) => [
+      allow.ownerDefinedIn('authorId').to(['create', 'read', 'delete']),
+      allow.group('ADMIN').to(['create', 'read', 'delete']),
+      allow.authenticated().to(['read']),
+    ])
+    .secondaryIndexes((index) => [
+      index('feedbackId').sortKeys(['createdAt']).name('byFeedback'),
     ]),
 
   sendNotification: a
