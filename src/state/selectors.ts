@@ -315,25 +315,42 @@ export function getPreStartTc(
 }
 
 /**
- * Build a Calirad-friendly default export name from a track's KML name,
- * deduping against an existing set. Examples:
- *   "SS1/5"                            -> "SS1-5"
- *   "SS1/SS5 - Sarnau (4.38 miles)"    -> "SS1-SS5-Sarnau"
- *   "SS7" (second occurrence)          -> "SS7-2"
+ * Build a Calirad-friendly default export name from a track's KML name.
+ * Format: SSX-Y-Z (stage numbers only, no location name).
+ * Examples:
+ *   "SS1/5 - Sarnau (4.38 miles)"  -> "SS1-5"
+ *   "SS1/SS5 - El Condado"         -> "SS1-5"
+ *   "SS7"                          -> "SS7"
+ *   "SS7" (second occurrence)      -> "SS7-2"
  */
 export function defaultExportName(
   track: ParsedTrack,
   existing: Set<string>,
 ): string {
   const raw = (track.name || 'stage').toString();
-  const base =
-    raw
-      .replace(/\s*\([^)]*\)\s*/g, '')
-      .replace(/[/\\]/g, '-')
-      .replace(/\s+/g, '-')
-      .replace(/[^A-Za-z0-9\-_.]/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/^-+|-+$/g, '') || 'stage';
+
+  // Strip location name and parenthetical parts first, then extract SS identifier.
+  // "SS1/SS5 - Sarnau (4.38 miles)" → identifier "SS1/SS5" → "SS1-5"
+  const identifier = raw
+    .replace(/\s*[-–]\s*.+$/, '')      // drop "- Location name"
+    .replace(/\s*\([^)]*\)\s*/g, '')   // drop "(4.38 miles)"
+    .trim();
+
+  let base: string;
+  if (/^ss/i.test(identifier)) {
+    // Collect all digit groups in the identifier: SS1/5 → [1,5], SS1/SS5 → [1,5]
+    const nums = identifier.match(/\d+/g) ?? [];
+    base = nums.length > 0 ? `SS${nums.join('-')}` : 'SS';
+  } else {
+    // No SS prefix — normalise separators as fallback
+    base =
+      identifier
+        .replace(/[/\\]/g, '-')
+        .replace(/\s+/g, '-')
+        .replace(/[^A-Za-z0-9\-_.]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'stage';
+  }
 
   if (!existing.has(base)) return base;
   let n = 2;

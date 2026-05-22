@@ -59,13 +59,13 @@ describe('defaultExportName', () => {
     );
   });
 
-  it('strips parenthesised suffix and squeezes whitespace', () => {
+  it('strips location name and parenthesised suffix — numbers only', () => {
     expect(
       defaultExportName(
         track({ id: '2', name: 'SS1/SS5 - Sarnau (4.38 miles)' }),
         new Set(),
       ),
-    ).toBe('SS1-SS5-Sarnau');
+    ).toBe('SS1-5');
   });
 
   it('dedupes by suffixing -2, -3, ...', () => {
