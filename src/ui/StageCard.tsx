@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER, REQUIRED_STAGE_CATEGORIES } from '../classify/categoryMeta';
 import {
   effectiveCategory,
+  getPreStartTc,
   getStageAssignedPoints,
   getStagedTrackIds,
   getStageLegTracks,
@@ -58,6 +59,10 @@ export function StageCard({
   );
   const assignedPoints = useMemo(
     () => getStageAssignedPoints(state, stage.id),
+    [state, stage.id],
+  );
+  const preStartTc = useMemo(
+    () => getPreStartTc(state, stage.id),
     [state, stage.id],
   );
   const categoryCounts = useMemo(() => {
@@ -427,6 +432,16 @@ export function StageCard({
           <span className="text-slate-500">m</span>
         </span>
       </label>
+
+      {/* Pre-start TC callout */}
+      {preStartTc && (
+        <div className="rounded border border-amber-200 bg-amber-50 px-2 py-1.5 text-[11px] text-amber-900 flex items-center gap-1.5">
+          <span className="font-semibold text-amber-600">TC</span>
+          <span>
+            Pre-start TC: <span className="font-medium">{preStartTc.name || '(unnamed)'}</span>
+          </span>
+        </div>
+      )}
 
       {/* C25 — required point checklist */}
       {(() => {

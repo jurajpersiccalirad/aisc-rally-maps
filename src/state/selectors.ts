@@ -225,6 +225,9 @@ function sameFolderPath(a: string[], b: string[]): boolean {
   return true;
 }
 
+/** Points further than this from every stage polyline are not auto-assigned. */
+const MAX_AUTO_ASSIGN_KM = 1.0;
+
 function autoStageId(
   p: ParsedPoint,
   candidates: StageCandidate[],
@@ -243,7 +246,9 @@ function autoStageId(
       bestId = pool[i].stageId;
     }
   }
-  return bestId;
+  // Don't assign to a stage that's too far away — standalone TCs, service-park
+  // controls, etc. should stay unassigned rather than polluting a distant stage.
+  return bestDist <= MAX_AUTO_ASSIGN_KM ? bestId : null;
 }
 
 /**
@@ -282,6 +287,31 @@ export function getStageAssignedPoints(
 ): ParsedPoint[] {
   const map = getEffectivePointStages(state);
   return state.points.filter((p) => map.get(p.id) === stageId);
+}
+
+/**
+ * Among points assigned to a stage, returns the ATC/TC point that is closest
+ * to the stage's start coordinate — this is the "arrival TC" competitors must
+ * check into before the stage begins, and the most operationally important TC
+ * for deployment planning.
+ */
+export function getPreStartTc(
+  state: ProjectState,
+  stageId: string,
+): ParsedPoint | undefined {
+  const stageStart = getStageStartEnd(state, stageId)?.start;
+  if (!stageStart) return undefined;
+  const assigned = getStageAssignedPoints(state, stageId);
+  const tcs = assigned.filter((p) => effectiveCategory(p) === 'atc');
+  if (tcs.length === 0) return undefined;
+  const origin = turfPoint([stageStart[0], stageStart[1]]);
+  let best = tcs[0];
+  let bestDist = turfDistance(origin, turfPoint([best.coord[0], best.coord[1]]), { units: 'meters' });
+  for (let i = 1; i < tcs.length; i++) {
+    const d = turfDistance(origin, turfPoint([tcs[i].coord[0], tcs[i].coord[1]]), { units: 'meters' });
+    if (d < bestDist) { bestDist = d; best = tcs[i]; }
+  }
+  return best;
 }
 
 /**

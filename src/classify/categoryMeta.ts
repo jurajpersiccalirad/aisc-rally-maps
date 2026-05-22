@@ -11,7 +11,7 @@ export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
   start:        { label: 'Start',          glyph: 'S',  color: '#16a34a', textOnColor: '#fff' },
   finish:       { label: 'Finish',         glyph: 'F',  color: '#2563eb', textOnColor: '#fff' },
   stop:         { label: 'Stop control',   glyph: '■',  color: '#dc2626', textOnColor: '#fff' },
-  atc:          { label: 'ATC',            glyph: 'A',  color: '#f59e0b', textOnColor: '#111' },
+  atc:          { label: 'Time Control',   glyph: 'TC', color: '#f59e0b', textOnColor: '#111' },
   pc:           { label: 'PC',             glyph: 'P',  color: '#eab308', textOnColor: '#111' },
   intermediate: { label: 'Intermediate',   glyph: 'I',  color: '#ec4899', textOnColor: '#fff' },
   chicane:      { label: 'Chicane',        glyph: 'Z',  color: '#f97316', textOnColor: '#fff' },
