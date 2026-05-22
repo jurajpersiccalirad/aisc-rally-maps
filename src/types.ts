@@ -13,6 +13,9 @@ export type PointCategory =
   | 'ambulance'
   | 'refuel'
   | 'scrutineering'
+  | 'service_park'
+  | 'hq'
+  | 'parc_ferme'
   | 'other';
 
 export interface ParsedPlacemark {

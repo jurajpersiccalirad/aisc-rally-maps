@@ -84,6 +84,18 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     text: /\bscrut|verifica|technick.*p[rř]ej/,
   },
   {
+    category: 'service_park',
+    text: /\bservice\s+park\b|\bservicio\s+parque\b|\bservisn[ií]\s+park\b|\bservis\s+park\b/,
+  },
+  {
+    category: 'hq',
+    text: /\bhq\b|\bheadquarters\b|\brally\s+control\b|\brally\s+hq\b|\brally\s+centre\b|\bcentro\s+rally\b/,
+  },
+  {
+    category: 'parc_ferme',
+    text: /\bparc\s+ferm[eé]\b|\bparc\b.*ferm|\bpf\b/,
+  },
+  {
     // Fallback: bare stage reference "SS1", "SS 2/5", "SS3-4" with no other
     // keyword — treat as start. Placed last so specific rules above win first.
     category: 'start',

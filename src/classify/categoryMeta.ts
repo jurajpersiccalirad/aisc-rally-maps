@@ -20,6 +20,9 @@ export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
   ambulance:    { label: 'Ambulance',      glyph: '+',  color: '#ffffff', textOnColor: '#dc2626' },
   refuel:       { label: 'Refuel',         glyph: '⛽', color: '#92400e', textOnColor: '#fff' },
   scrutineering:{ label: 'Scrutineering',  glyph: '⚙', color: '#475569', textOnColor: '#fff' },
+  service_park: { label: 'Service Park',   glyph: 'SP', color: '#0f766e', textOnColor: '#fff' },
+  hq:           { label: 'HQ',             glyph: 'HQ', color: '#4338ca', textOnColor: '#fff' },
+  parc_ferme:   { label: 'Parc Fermé',     glyph: 'PF', color: '#7c3aed', textOnColor: '#fff' },
   other:        { label: 'Other',          glyph: '•',  color: '#94a3b8', textOnColor: '#111' },
 };
 
@@ -36,8 +39,19 @@ export const CATEGORY_ORDER: PointCategory[] = [
   'ambulance',
   'refuel',
   'scrutineering',
+  'service_park',
+  'hq',
+  'parc_ferme',
   'other',
 ];
 
 /** Required control points that must be present on every stage. */
 export const REQUIRED_STAGE_CATEGORIES: PointCategory[] = ['start', 'finish', 'stop'];
+
+/** Facility points — never auto-assigned to a stage. */
+export const FACILITY_CATEGORIES = new Set<PointCategory>([
+  'service_park',
+  'hq',
+  'parc_ferme',
+  'other',
+]);

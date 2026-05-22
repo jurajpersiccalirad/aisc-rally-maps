@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LngLatAlt, ParsedPoint } from '../types';
-import { CATEGORY_META } from '../classify/categoryMeta';
+import { CATEGORY_META, FACILITY_CATEGORIES } from '../classify/categoryMeta';
 import { effectiveCategory } from '../state/selectors';
 import { useProject } from '../state/useProject';
 import { formatDistance, formatDuration, queryOsrm, type OsrmRoute } from '../lib/osrm';
@@ -274,7 +274,11 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
                   className="mt-1 w-full text-xs rounded border border-slate-300 px-2 py-1.5"
                 >
                   <option value="">— select origin point —</option>
-                  {allPoints.map((p) => (
+                  {/* Facility points (Service Park, HQ, Parc Fermé) listed first */}
+                  {allPoints.filter((p) => FACILITY_CATEGORIES.has(effectiveCategory(p)) && effectiveCategory(p) !== 'other').map((p) => (
+                    <option key={p.id} value={p.id}>{pointLabel(p)}</option>
+                  ))}
+                  {allPoints.filter((p) => !FACILITY_CATEGORIES.has(effectiveCategory(p)) || effectiveCategory(p) === 'other').map((p) => (
                     <option key={p.id} value={p.id}>{pointLabel(p)}</option>
                   ))}
                 </select>

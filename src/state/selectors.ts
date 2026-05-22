@@ -7,6 +7,7 @@ import {
   point as turfPoint,
   pointToLineDistance,
 } from '@turf/turf';
+import { FACILITY_CATEGORIES } from '../classify/categoryMeta';
 import type {
   LngLatAlt,
   ParsedPoint,
@@ -272,7 +273,7 @@ export function getEffectivePointStages(
       );
       continue;
     }
-    if (effectiveCategory(p) === 'other') {
+    if (FACILITY_CATEGORIES.has(effectiveCategory(p))) {
       result.set(p.id, null);
       continue;
     }
