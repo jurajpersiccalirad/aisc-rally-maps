@@ -7,6 +7,7 @@ import type {
   Stage,
   StageLeg,
 } from '../types';
+import { classifyPoint } from '../classify/pointCategory';
 import { autoOrientLeg, defaultExportName } from './selectors';
 import { newId } from '../lib/id';
 
@@ -27,6 +28,7 @@ export type ProjectAction =
   | { type: 'RESET' }
   | { type: 'SET_EVENT_NAME'; name: string }
   | { type: 'SET_VERSION'; version: string }
+  | { type: 'RECLASSIFY_ALL_POINTS' }
   | { type: 'ADD_STAGE'; trackId: string }
   | { type: 'ADD_ALL_TRACKS_AS_STAGES' }
   | { type: 'ADD_TRACK_TO_STAGE'; stageId: string; trackId: string }
@@ -138,6 +140,18 @@ export function projectReducer(
       return { ...state, eventName: action.name };
     case 'SET_VERSION':
       return { ...state, version: action.version };
+    case 'RECLASSIFY_ALL_POINTS':
+      return {
+        ...state,
+        points: state.points.map((p) => ({
+          ...p,
+          category: classifyPoint({
+            name: p.name,
+            description: p.description,
+            styleUrl: p.styleUrl,
+          }),
+        })),
+      };
     case 'ADD_STAGE': {
       if (allStagedTrackIds(state.stages).has(action.trackId)) return state;
       const track = state.tracks.find((t) => t.id === action.trackId);

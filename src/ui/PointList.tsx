@@ -40,9 +40,19 @@ export function PointList({
 
   return (
     <div className="space-y-2">
-      <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
-        Points ({state.points.length})
-      </h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
+          Points ({state.points.length})
+        </h3>
+        <button
+          type="button"
+          onClick={() => dispatch({ type: 'RECLASSIFY_ALL_POINTS' })}
+          className="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-50 text-slate-600"
+          title="Re-run auto-classification on all points using their name/description. Does not clear manual overrides."
+        >
+          Re-classify
+        </button>
+      </div>
       <div className="space-y-1">
         {CATEGORY_ORDER.map((cat) => {
           const list = grouped.get(cat);

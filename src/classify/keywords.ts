@@ -16,9 +16,12 @@ export interface CategoryKeywords {
  */
 export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
   {
-    // Flying finish → finish. \bff\b anywhere in name (e.g. "SS1 FF", "FF SS2/5")
+    // Flying finish → finish.
+    // \bff (no trailing \b) so "FF1/5", "FF2" also match — the digit after FF
+    // is a word char so \bff\b would miss it. Left boundary \b prevents matching
+    // inside words like "officer" or "traffic".
     category: 'finish',
-    text: /\bflying\b|\bff\b|fin\s+volante/,
+    text: /\bflying\b|\bff|fin\s+volante/,
   },
   {
     // SSS / Super Special Stage → start
