@@ -53,7 +53,9 @@ const cases: Case[] = [
   { name: '', styleUrl: '#finish_icon_blue', expected: 'finish' },
 
   // Ambiguity protection — "TC" only when isolated
-  { name: 'TC SS1', expected: 'atc' },
+  { name: 'TC SS1',   expected: 'atc' },
+  { name: 'TC1/5',   expected: 'atc' },
+  { name: 'ATC2/6',  expected: 'atc' },
   { name: 'BTC office', expected: 'other' },
 
   // Feedback: bare SS reference → start when no better keyword

@@ -59,9 +59,9 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     text: /\bint\.?\s*\d|\bintermedio\b|\bintermedi/,
   },
   {
-    // ATC / TC — \btc\b anywhere (e.g. "SS1 TC", "TC SS2/5")
+    // ATC / TC — no trailing \b so "ATC2/6", "TC1/5" also match
     category: 'atc',
-    text: /\batc\b|\btc\b/,
+    text: /\batc|\btc/,
   },
   {
     category: 'pc',
