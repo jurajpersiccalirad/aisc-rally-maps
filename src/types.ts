@@ -3,11 +3,12 @@ export type LngLatAlt = [number, number] | [number, number, number];
 export type PointCategory =
   | 'start'
   | 'finish'
-  | 'flying_finish'
   | 'stop'
   | 'atc'
   | 'pc'
   | 'intermediate'
+  | 'chicane'
+  | 'marshall'
   | 'radio'
   | 'ambulance'
   | 'refuel'

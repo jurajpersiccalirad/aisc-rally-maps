@@ -2,26 +2,24 @@ import type { PointCategory } from '../types';
 
 export interface CategoryKeywords {
   category: PointCategory;
-  /** Matches name and/or description (lower-cased before testing). */
   text?: RegExp;
-  /** Matches raw `<styleUrl>` (lower-cased). */
   styleUrl?: RegExp;
 }
 
 /**
- * Ordered most-specific to least-specific. The first rule that matches wins.
- * Patterns are lower-cased; classifier supplies the casing.
- *
- * Languages covered: English, Spanish, Czech — matches what we've seen across
- * Severn Valley (UK), Sierra Morena (ES), and Czech rally KMLs.
+ * Ordered most-specific to least-specific. First match wins.
+ * Patterns tested against lower-cased name + description.
+ * Languages: English, Spanish, Czech.
  */
 export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
   {
-    category: 'flying_finish',
+    // Flying finish merged into finish (C26 extension) — flying finish is still
+    // a finish line; distinguish only for marshal/safety planning if needed.
+    category: 'finish',
     text: /flying|^ff\b|\bff\s+ss|fin\s+volante/,
   },
   {
-    // SSS (Super Special Stage) is functionally a Start — merge to avoid confusion
+    // SSS (Super Special Stage) merged into start (C26)
     category: 'start',
     text: /^sss\b|\bsss\s+\d|super\s+special/,
   },
@@ -39,6 +37,14 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     category: 'stop',
     text: /^stop\b|\bstop\s+ss|sign\s+stop\s+red|se[ñn]a.*stop/,
     styleUrl: /stop_|sign.*stop/,
+  },
+  {
+    category: 'chicane',
+    text: /\bchicanes?\b|speed\s+control\s+chicane/,
+  },
+  {
+    category: 'marshall',
+    text: /\bmarshall?s?\b|\bofficial\s+point\b|\bmarshal\s+post\b/,
   },
   {
     category: 'intermediate',

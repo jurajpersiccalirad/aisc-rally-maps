@@ -13,7 +13,7 @@ const cases: Case[] = [
   // Severn Valley (English)
   { name: 'SSS 1/5', expected: 'start' },
   { name: 'Start SS3', expected: 'start' },
-  { name: 'FF SS2/5', expected: 'flying_finish' },
+  { name: 'FF SS2/5', expected: 'finish' },
   { name: 'Stop SS1/5', expected: 'stop' },
   { name: 'ATC SS1/5', expected: 'atc' },
   { name: 'PC A / PC D', expected: 'pc' },

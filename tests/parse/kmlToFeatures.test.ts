@@ -52,7 +52,7 @@ describe('readUploadedBytes — Severn Valley 2026 KMZ', () => {
     expect(cats.get('start') ?? 0).toBeGreaterThanOrEqual(1);
     expect(cats.get('stop') ?? 0).toBeGreaterThanOrEqual(1);
     expect(cats.get('atc') ?? 0).toBeGreaterThanOrEqual(1);
-    expect(cats.get('flying_finish') ?? 0).toBeGreaterThanOrEqual(1);
+    expect(cats.get('finish') ?? 0).toBeGreaterThanOrEqual(1);
     expect(cats.get('pc') ?? 0).toBeGreaterThanOrEqual(1);
   });
 });

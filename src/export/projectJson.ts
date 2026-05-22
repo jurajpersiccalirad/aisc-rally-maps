@@ -1,4 +1,4 @@
-import type { ProjectState } from '../types';
+import type { PointCategory, ProjectState } from '../types';
 
 export interface SerializedProject {
   version: 1;
@@ -23,14 +23,20 @@ export function deserializeProject(text: string): ProjectState {
     throw new Error('Project file is missing the `state` field.');
   }
   const state = parsed.state;
-  // Migrate removed 'sss' category → 'start' (C26)
+  // Migrate removed categories on load:
+  //   'sss'          → 'start'  (C26: SSS merged into Start)
+  //   'flying_finish'→ 'finish' (C26 ext: flying finish merged into Finish)
+  function migrateCategory(c: string | undefined): PointCategory | undefined {
+    if (c === 'sss') return 'start';
+    if (c === 'flying_finish') return 'finish';
+    return c as PointCategory | undefined;
+  }
   return {
     ...state,
     points: state.points.map((p) => ({
       ...p,
-      category: (p.category as string) === 'sss' ? 'start' : p.category,
-      categoryOverride:
-        (p.categoryOverride as string) === 'sss' ? 'start' : p.categoryOverride,
+      category: migrateCategory(p.category as string) ?? 'other',
+      categoryOverride: migrateCategory(p.categoryOverride as string | undefined),
     })),
   };
 }
