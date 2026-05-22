@@ -49,7 +49,7 @@ describe('readUploadedBytes — Severn Valley 2026 KMZ', () => {
     for (const p of result.points) {
       cats.set(p.category, (cats.get(p.category) ?? 0) + 1);
     }
-    expect(cats.get('sss') ?? 0).toBeGreaterThanOrEqual(1);
+    expect(cats.get('start') ?? 0).toBeGreaterThanOrEqual(1);
     expect(cats.get('stop') ?? 0).toBeGreaterThanOrEqual(1);
     expect(cats.get('atc') ?? 0).toBeGreaterThanOrEqual(1);
     expect(cats.get('flying_finish') ?? 0).toBeGreaterThanOrEqual(1);

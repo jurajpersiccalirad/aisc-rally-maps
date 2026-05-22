@@ -11,7 +11,7 @@ interface Case {
 
 const cases: Case[] = [
   // Severn Valley (English)
-  { name: 'SSS 1/5', expected: 'sss' },
+  { name: 'SSS 1/5', expected: 'start' },
   { name: 'Start SS3', expected: 'start' },
   { name: 'FF SS2/5', expected: 'flying_finish' },
   { name: 'Stop SS1/5', expected: 'stop' },

@@ -7,7 +7,6 @@ export type PointCategory =
   | 'stop'
   | 'atc'
   | 'pc'
-  | 'sss'
   | 'intermediate'
   | 'radio'
   | 'ambulance'

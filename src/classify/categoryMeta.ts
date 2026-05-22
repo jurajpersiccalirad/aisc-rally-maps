@@ -7,11 +7,6 @@ export interface CategoryMeta {
   textOnColor: string;
 }
 
-/**
- * Visual metadata for each point category — used by map markers, sidebar
- * badges, and category dropdowns. Colors picked to be distinguishable on OSM
- * tiles; glyphs are single chars so they fit in a 16-px marker.
- */
 export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
   start: { label: 'Start', glyph: 'S', color: '#16a34a', textOnColor: '#fff' },
   finish: { label: 'Finish', glyph: 'F', color: '#2563eb', textOnColor: '#fff' },
@@ -21,10 +16,9 @@ export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
     color: '#7c3aed',
     textOnColor: '#fff',
   },
-  stop: { label: 'Stop', glyph: '■', color: '#dc2626', textOnColor: '#fff' },
+  stop: { label: 'Stop control', glyph: '■', color: '#dc2626', textOnColor: '#fff' },
   atc: { label: 'ATC', glyph: 'A', color: '#f59e0b', textOnColor: '#111' },
   pc: { label: 'PC', glyph: 'P', color: '#eab308', textOnColor: '#111' },
-  sss: { label: 'SSS', glyph: '★', color: '#0d9488', textOnColor: '#fff' },
   intermediate: {
     label: 'Intermediate',
     glyph: 'I',
@@ -55,7 +49,6 @@ export const CATEGORY_META: Record<PointCategory, CategoryMeta> = {
 
 export const CATEGORY_ORDER: PointCategory[] = [
   'start',
-  'sss',
   'finish',
   'flying_finish',
   'stop',
@@ -68,3 +61,6 @@ export const CATEGORY_ORDER: PointCategory[] = [
   'scrutineering',
   'other',
 ];
+
+/** Required control points that must be present on every stage. */
+export const REQUIRED_STAGE_CATEGORIES: PointCategory[] = ['start', 'finish', 'stop'];

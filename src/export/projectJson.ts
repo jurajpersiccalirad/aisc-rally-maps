@@ -22,7 +22,17 @@ export function deserializeProject(text: string): ProjectState {
   if (!parsed.state) {
     throw new Error('Project file is missing the `state` field.');
   }
-  return parsed.state;
+  const state = parsed.state;
+  // Migrate removed 'sss' category → 'start' (C26)
+  return {
+    ...state,
+    points: state.points.map((p) => ({
+      ...p,
+      category: (p.category as string) === 'sss' ? 'start' : p.category,
+      categoryOverride:
+        (p.categoryOverride as string) === 'sss' ? 'start' : p.categoryOverride,
+    })),
+  };
 }
 
 export function projectJsonFilename(eventName: string): string {

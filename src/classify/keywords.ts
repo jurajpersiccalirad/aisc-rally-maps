@@ -21,7 +21,8 @@ export const CATEGORY_KEYWORDS: CategoryKeywords[] = [
     text: /flying|^ff\b|\bff\s+ss|fin\s+volante/,
   },
   {
-    category: 'sss',
+    // SSS (Super Special Stage) is functionally a Start — merge to avoid confusion
+    category: 'start',
     text: /^sss\b|\bsss\s+\d|super\s+special/,
   },
   {

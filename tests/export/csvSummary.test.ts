@@ -5,8 +5,7 @@ import type { PointCategory } from '../../src/types';
 describe('csvSummary', () => {
   it('emits a header row and one stage row', () => {
     const counts = new Map<PointCategory, number>([
-      ['start', 0],
-      ['sss', 1],
+      ['start', 1],
       ['stop', 1],
       ['atc', 1],
       ['pc', 4],

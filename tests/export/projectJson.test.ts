@@ -52,7 +52,7 @@ function loadedState() {
   s = projectReducer(s, {
     type: 'OVERRIDE_POINT_CATEGORY',
     pointId: 'p1',
-    category: 'sss',
+    category: 'start',
   });
   return s;
 }
@@ -67,7 +67,7 @@ describe('projectJson', () => {
     expect(loaded.stages[0].cropStart).toBe(0.1);
     expect(loaded.stages[0].cropEnd).toBe(0.9);
     expect(loaded.stages[0].legs[0].trackId).toBe('t1');
-    expect(loaded.points[0].categoryOverride).toBe('sss');
+    expect(loaded.points[0].categoryOverride).toBe('start');
   });
 
   it('rejects unsupported versions', () => {

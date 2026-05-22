@@ -1,5 +1,6 @@
 import saveAs from 'file-saver';
 import JSZip from 'jszip';
+import { REQUIRED_STAGE_CATEGORIES } from '../classify/categoryMeta';
 import polygonClipping from 'polygon-clipping';
 import { CATEGORY_ORDER } from '../classify/categoryMeta';
 import type { RingMP } from '../geometry/bufferStage';
@@ -67,6 +68,22 @@ export function planExport(
     seen.add(s.exportName);
     if (!geometry.buffered.has(s.id)) {
       errors.push(`Stage "${s.exportName}" has no buffered geometry.`);
+    }
+  }
+
+  // C25 — warn on missing required controls per stage
+  for (const s of state.stages) {
+    const assigned = state.points.filter((p) => {
+      if (p.stageOverride !== undefined) return p.stageOverride === s.id;
+      const cat = p.categoryOverride ?? p.category;
+      return cat !== 'other';
+    });
+    const presentCats = new Set(assigned.map((p) => p.categoryOverride ?? p.category));
+    const missing = REQUIRED_STAGE_CATEGORIES.filter((c) => !presentCats.has(c));
+    if (missing.length > 0) {
+      warnings.push(
+        `Stage "${s.exportName}" is missing: ${missing.join(', ')}. Assign these control points before finalising.`,
+      );
     }
   }
 

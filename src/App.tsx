@@ -10,11 +10,13 @@ import { ExportButton } from './ui/ExportButton';
 import { MapView } from './ui/MapView';
 import { PointList } from './ui/PointList';
 import { PublishButton } from './ui/PublishButton';
+import { FeedbackModal } from './ui/FeedbackModal';
 import { RestoreBanner } from './ui/RestoreBanner';
 import { SaveLoadButtons } from './ui/SaveLoadButtons';
 import { StagesPanel } from './ui/StagesPanel';
 import { TrackList } from './ui/TrackList';
 import { AdminPage } from './ui/admin/AdminPage';
+import { DeploymentPlanner } from './ui/DeploymentPlanner';
 import { UserEventList } from './ui/UserEventList';
 import { RequireAuth } from './ui/auth/RequireAuth';
 import { UserBadge } from './ui/auth/UserBadge';
@@ -129,11 +131,12 @@ function Workspace() {
   );
 }
 
-type Panel = 'editor' | 'admin' | 'myevents';
+type Panel = 'editor' | 'admin' | 'myevents' | 'deploy';
 
 function Shell() {
   const { user } = useAuth();
   const [panel, setPanel] = useState<Panel>('editor');
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const isAdmin = user?.role === 'ADMIN';
 
   return (
@@ -156,6 +159,15 @@ function Shell() {
               My Events
             </button>
           )}
+          {user && panel === 'editor' && (
+            <button
+              type="button"
+              onClick={() => setPanel('deploy')}
+              className="text-xs px-3 py-1.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
+            >
+              Deployment
+            </button>
+          )}
           {isAdmin && panel === 'editor' && (
             <button
               type="button"
@@ -165,16 +177,29 @@ function Shell() {
               Admin
             </button>
           )}
+          {user && (
+            <button
+              type="button"
+              onClick={() => setFeedbackOpen(true)}
+              className="text-xs px-2 py-1.5 rounded border border-slate-300 hover:bg-slate-50"
+              title="Send feedback"
+            >
+              Feedback
+            </button>
+          )}
           <UserBadge />
         </div>
       </header>
 
+      {feedbackOpen && <FeedbackModal onClose={() => setFeedbackOpen(false)} />}
       {panel === 'editor' && <RestoreBanner />}
 
       {panel === 'admin' ? (
         <AdminPage onClose={() => setPanel('editor')} />
       ) : panel === 'myevents' ? (
         <UserEventList onClose={() => setPanel('editor')} />
+      ) : panel === 'deploy' ? (
+        <DeploymentPlanner onClose={() => setPanel('editor')} />
       ) : (
         <Workspace />
       )}

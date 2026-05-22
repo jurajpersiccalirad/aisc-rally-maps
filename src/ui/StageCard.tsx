@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { CATEGORY_META, CATEGORY_ORDER } from '../classify/categoryMeta';
+import { CATEGORY_META, CATEGORY_ORDER, REQUIRED_STAGE_CATEGORIES } from '../classify/categoryMeta';
 import {
   effectiveCategory,
   getStageAssignedPoints,
@@ -427,6 +427,33 @@ export function StageCard({
           <span className="text-slate-500">m</span>
         </span>
       </label>
+
+      {/* C25 — required point checklist */}
+      {(() => {
+        const missing = REQUIRED_STAGE_CATEGORIES.filter(
+          (c) => (categoryCounts.get(c) ?? 0) === 0,
+        );
+        if (missing.length === 0) return null;
+        return (
+          <div className="rounded border border-red-200 bg-red-50 px-2 py-1.5 text-[11px] text-red-800 space-y-0.5">
+            <div className="font-semibold">Missing required controls:</div>
+            {missing.map((c) => (
+              <div key={c} className="flex items-center gap-1.5">
+                <span
+                  className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 font-semibold"
+                  style={{ background: CATEGORY_META[c].color, color: CATEGORY_META[c].textOnColor }}
+                >
+                  {CATEGORY_META[c].glyph}
+                </span>
+                <span>{CATEGORY_META[c].label} — assign a point with this category to this stage</span>
+              </div>
+            ))}
+            <div className="text-red-600 mt-1">
+              Use the Points list to set a category override and stage assignment, or classify a point on import.
+            </div>
+          </div>
+        );
+      })()}
 
       <div className="text-[11px] text-slate-600 flex items-center gap-1 flex-wrap">
         <span className="text-slate-500">points:</span>

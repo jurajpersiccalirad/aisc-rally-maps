@@ -102,6 +102,19 @@ const schema = a.schema({
     .authorization((allow) => [allow.group('ADMIN')])
     .handler(a.handler.function(adminUserManager)),
 
+  Feedback: a
+    .model({
+      userId: a.string().required(),
+      userEmail: a.string(),
+      category: a.enum(['BUG', 'FEATURE', 'OTHER']),
+      text: a.string().required(),
+      createdAt: a.datetime().required(),
+    })
+    .authorization((allow) => [
+      allow.ownerDefinedIn('userId').to(['create', 'read']),
+      allow.group('ADMIN').to(['read', 'delete']),
+    ]),
+
   sendNotification: a
     .mutation()
     .arguments({
