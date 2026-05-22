@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { LngLatAlt, ParsedPoint } from '../types';
 import { CATEGORY_META, FACILITY_CATEGORIES } from '../classify/categoryMeta';
-import { effectiveCategory } from '../state/selectors';
+import {
+  effectiveCategory,
+  getStageDerivedGeometry,
+  getStageAssignedPoints,
+} from '../state/selectors';
 import { useProject } from '../state/useProject';
 import { formatDistance, formatDuration, queryOsrm, type OsrmRoute } from '../lib/osrm';
 
@@ -10,13 +14,12 @@ import { formatDistance, formatDuration, queryOsrm, type OsrmRoute } from '../li
 interface Stop {
   id: string;
   pointId: string;
-  label?: string;
 }
 
 interface StageSchedule {
   stageId: string;
   stageName: string;
-  startTime: string; // "HH:MM"
+  startTime: string;
 }
 
 interface ClosureParams {
@@ -34,12 +37,21 @@ interface RoutedLeg {
   error: string | null;
 }
 
+interface StageGeo {
+  id: string;
+  name: string;
+  coords: LngLatAlt[];
+  color: string;
+}
+
 const DEFAULT_CLOSURE: ClosureParams = {
   publicMinutes: 120,
   orgMinutes: 60,
   safetyMinutes: 30,
   role: 'org',
 };
+
+const IMPORTANT_CATS = new Set(['start', 'finish', 'stop', 'atc']);
 
 function effectiveClosureMinutes(p: ClosureParams): number {
   if (p.role === 'public') return p.publicMinutes;
@@ -52,36 +64,34 @@ function newStop(pointId: string): Stop {
   return { id: `stop-${++stopSeq}`, pointId };
 }
 
-// ── helpers ───────────────────────────────────────────────────────────────────
-
 function pointLabel(p: ParsedPoint): string {
   const cat = effectiveCategory(p);
   return `${p.name || CATEGORY_META[cat].label} (${CATEGORY_META[cat].label})`;
 }
 
-function safeUntil(
-  stageStartTime: string,
-  closureMinutes: number,
-  date: string,
-): Date {
+function safeUntil(stageStartTime: string, closureMinutes: number, date: string): Date {
   const [h, m] = stageStartTime.split(':').map(Number);
-  const start = new Date(`${date}T${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:00`);
+  const start = new Date(`${date}T${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:00`);
   return new Date(start.getTime() - closureMinutes * 60_000);
 }
 
-// ── map overlay component ─────────────────────────────────────────────────────
+// ── map ───────────────────────────────────────────────────────────────────────
 
-function RouteMap({ legs, stops, points }: {
+interface RouteMapProps {
   legs: RoutedLeg[];
   stops: Stop[];
-  points: ParsedPoint[];
-}) {
+  allPoints: ParsedPoint[];
+  stageGeos: StageGeo[];
+  importantPoints: ParsedPoint[];
+  hiddenLegs: Set<number>;
+}
+
+function RouteMap({ legs, stops, allPoints, stageGeos, importantPoints, hiddenLegs }: RouteMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<unknown>(null);
   const layersRef = useRef<unknown[]>([]);
 
   useEffect(() => {
-    // Dynamically import Leaflet to avoid SSR issues
     void (async () => {
       const L = (await import('leaflet')).default;
       if (!mapRef.current || mapInstanceRef.current) return;
@@ -105,17 +115,73 @@ function RouteMap({ legs, stops, points }: {
       const map = mapInstanceRef.current as ReturnType<typeof L.map> | null;
       if (!map) return;
 
-      // Clear previous layers
-      for (const layer of layersRef.current) {
-        (layer as { remove(): void }).remove();
-      }
+      for (const layer of layersRef.current) (layer as { remove(): void }).remove();
       layersRef.current = [];
 
       const bounds: [number, number][] = [];
 
-      // Draw numbered stop markers
+      // ── Stage polylines ────────────────────────────────────────────────────
+      for (const stage of stageGeos) {
+        if (stage.coords.length < 2) continue;
+        const latlngs = stage.coords.map(([lng, lat]) => [lat, lng] as [number, number]);
+        bounds.push(...latlngs);
+        const poly = L.polyline(latlngs, {
+          color: stage.color,
+          weight: 5,
+          opacity: 0.55,
+        }).bindTooltip(stage.name, { permanent: false, direction: 'center' }).addTo(map);
+        layersRef.current.push(poly);
+
+        // Stage name label at midpoint
+        const mid = latlngs[Math.floor(latlngs.length / 2)];
+        const label = L.marker(mid, {
+          icon: L.divIcon({
+            html: `<div style="background:rgba(255,255,255,0.9);border:1px solid ${stage.color};border-radius:3px;padding:1px 5px;font-size:10px;font-weight:700;color:${stage.color};white-space:nowrap;box-shadow:0 1px 2px rgba(0,0,0,0.2)">${stage.name}</div>`,
+            className: '',
+            iconAnchor: [0, 0],
+          }),
+          interactive: false,
+        }).addTo(map);
+        layersRef.current.push(label);
+      }
+
+      // ── Important stage points ─────────────────────────────────────────────
+      for (const p of importantPoints) {
+        const [lng, lat] = p.coord;
+        bounds.push([lat, lng]);
+        const cat = effectiveCategory(p);
+        const meta = CATEGORY_META[cat];
+        const icon = L.divIcon({
+          html: `<div style="background:${meta.color};color:${meta.textOnColor};border-radius:50%;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;border:1.5px solid rgba(0,0,0,0.3);box-shadow:0 1px 2px rgba(0,0,0,0.3)">${meta.glyph}</div>`,
+          className: '',
+          iconSize: [18, 18],
+          iconAnchor: [9, 9],
+        });
+        const marker = L.marker([lat, lng], { icon })
+          .bindTooltip(`${meta.label}: ${p.name || '(unnamed)'}`)
+          .addTo(map);
+        layersRef.current.push(marker);
+      }
+
+      // ── Route legs ─────────────────────────────────────────────────────────
+      legs.forEach((leg, i) => {
+        if (hiddenLegs.has(i)) return;
+        if (leg.routeA?.geometry) {
+          const coords = leg.routeA.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
+          const line = L.polyline(coords, { color: '#2563eb', weight: 3, opacity: 0.85 }).addTo(map);
+          layersRef.current.push(line);
+          bounds.push(...coords);
+        }
+        if (leg.routeB?.geometry) {
+          const coords = leg.routeB.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
+          const line = L.polyline(coords, { color: '#dc2626', weight: 3, opacity: 0.6, dashArray: '6 4' }).addTo(map);
+          layersRef.current.push(line);
+        }
+      });
+
+      // ── Numbered stop markers ──────────────────────────────────────────────
       stops.forEach((stop, idx) => {
-        const point = points.find((p) => p.id === stop.pointId);
+        const point = allPoints.find((p) => p.id === stop.pointId);
         if (!point) return;
         const [lng, lat] = point.coord;
         bounds.push([lat, lng]);
@@ -127,42 +193,28 @@ function RouteMap({ legs, stops, points }: {
           iconAnchor: [11, 11],
         });
         const marker = L.marker([lat, lng], { icon })
-          .bindTooltip(`${num}: ${stop.label ?? pointLabel(point)}`)
+          .bindTooltip(`${num}: ${pointLabel(point)}`)
           .addTo(map);
         layersRef.current.push(marker);
       });
 
-      // Draw routes
-      for (const leg of legs) {
-        if (leg.routeA?.geometry) {
-          const coords = leg.routeA.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
-          const line = L.polyline(coords, { color: '#2563eb', weight: 3, opacity: 0.8, dashArray: undefined }).addTo(map);
-          layersRef.current.push(line);
-          bounds.push(...coords);
-        }
-        if (leg.routeB?.geometry) {
-          const coords = leg.routeB.geometry.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
-          const line = L.polyline(coords, { color: '#dc2626', weight: 3, opacity: 0.6, dashArray: '6 4' }).addTo(map);
-          layersRef.current.push(line);
-        }
-      }
-
-      if (bounds.length > 0) {
-        map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
-      }
+      if (bounds.length > 0) map.fitBounds(L.latLngBounds(bounds), { padding: [30, 30] });
     })();
-  }, [legs, stops, points]);
+  }, [legs, stops, allPoints, stageGeos, importantPoints, hiddenLegs]);
 
-  return <div ref={mapRef} className="w-full h-64 rounded border border-slate-200 z-0" />;
+  return <div ref={mapRef} className="w-full rounded border border-slate-200 z-0" style={{ height: '520px' }} />;
 }
 
 // ── main component ────────────────────────────────────────────────────────────
+
+// Distinct colours for stages when KML has no style colour
+const STAGE_COLOURS = ['#e11d48','#d97706','#16a34a','#2563eb','#7c3aed','#0891b2','#ea580c','#84cc16'];
 
 export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
   const state = useProject();
   const allPoints = state.points;
 
-  const [originId, setOriginId] = useState<string>('');
+  const [originId, setOriginId] = useState('');
   const [stops, setStops] = useState<Stop[]>([]);
   const [schedule, setSchedule] = useState<StageSchedule[]>(() =>
     state.stages.map((s) => ({ stageId: s.id, stageName: s.exportName, startTime: '10:00' })),
@@ -172,8 +224,33 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
   const [legs, setLegs] = useState<RoutedLeg[]>([]);
   const [routing, setRouting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
+  const [hiddenLegs, setHiddenLegs] = useState<Set<number>>(new Set());
 
   const closureMinutes = effectiveClosureMinutes(closure);
+
+  // Stage geometries for map overlay
+  const stageGeos = useMemo((): StageGeo[] =>
+    state.stages.map((s, i) => {
+      const coords = getStageDerivedGeometry(state, s.id) ?? [];
+      const track = state.tracks.find((t) => t.id === s.legs[0]?.trackId);
+      return {
+        id: s.id,
+        name: s.exportName,
+        coords,
+        color: track?.styleColorHex ?? STAGE_COLOURS[i % STAGE_COLOURS.length],
+      };
+    }).filter((s) => s.coords.length >= 2),
+  [state]);
+
+  // Important points across all stages: start, finish, stop, TC
+  const importantPoints = useMemo((): ParsedPoint[] => {
+    const seen = new Set<string>();
+    return state.stages.flatMap((s) =>
+      getStageAssignedPoints(state, s.id)
+        .filter((p) => IMPORTANT_CATS.has(effectiveCategory(p)) && !seen.has(p.id))
+        .map((p) => { seen.add(p.id); return p; }),
+    );
+  }, [state]);
 
   const waypoints = useMemo((): { stop: Stop; point: ParsedPoint }[] => {
     const origin = allPoints.find((p) => p.id === originId);
@@ -189,14 +266,13 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
     if (waypoints.length < 2) return;
     setRouting(true);
     setRouteError(null);
+    setHiddenLegs(new Set());
     const newLegs: RoutedLeg[] = [];
     for (let i = 0; i < waypoints.length - 1; i++) {
       const from = waypoints[i];
       const to = waypoints[i + 1];
-      const fromCoord: LngLatAlt = from.point.coord;
-      const toCoord: LngLatAlt = to.point.coord;
       try {
-        const result = await queryOsrm([fromCoord, toCoord], true);
+        const result = await queryOsrm([from.point.coord, to.point.coord], true);
         newLegs.push({
           from: pointLabel(from.point),
           to: pointLabel(to.point),
@@ -208,8 +284,7 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
         newLegs.push({
           from: pointLabel(from.point),
           to: pointLabel(to.point),
-          routeA: null,
-          routeB: null,
+          routeA: null, routeB: null,
           error: e instanceof Error ? e.message : String(e),
         });
       }
@@ -226,25 +301,36 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
     setStops(next);
   };
 
-  // Departure time calculation: estimate cumulative travel time
+  const toggleLeg = (idx: number) =>
+    setHiddenLegs((prev) => {
+      const next = new Set(prev);
+      if (next.has(idx)) next.delete(idx); else next.add(idx);
+      return next;
+    });
+
   const departureTimes = useMemo(() => {
-    const times: { legIdx: number; departBy: Date | null; status: 'ok' | 'tight' | 'closed' }[] = [];
+    const times: { departBy: Date | null; status: 'ok' | 'tight' | 'closed' }[] = [];
     let cumSeconds = 0;
-    for (let i = 0; i < legs.length; i++) {
-      const leg = legs[i];
-      const travelSeconds = leg.routeA?.duration ?? leg.routeB?.duration ?? 0;
-      cumSeconds += travelSeconds;
-      // Find which stages are passed in this leg (simplistic: all stages for now)
+    for (const leg of legs) {
+      cumSeconds += leg.routeA?.duration ?? leg.routeB?.duration ?? 0;
       const closedAt = schedule.map((sch) => safeUntil(sch.startTime, closureMinutes, eventDate));
-      const earliestClose = closedAt.length > 0 ? closedAt.reduce((a, b) => (a < b ? a : b)) : null;
-      if (!earliestClose) { times.push({ legIdx: i, departBy: null, status: 'ok' }); continue; }
-      const baseTime = new Date();
-      const arrivalAtLeg = new Date(baseTime.getTime() + cumSeconds * 1000);
-      const status = arrivalAtLeg < earliestClose ? 'ok' : arrivalAtLeg < new Date(earliestClose.getTime() + 30 * 60_000) ? 'tight' : 'closed';
-      times.push({ legIdx: i, departBy: earliestClose, status });
+      const earliest = closedAt.length > 0 ? closedAt.reduce((a, b) => (a < b ? a : b)) : null;
+      if (!earliest) { times.push({ departBy: null, status: 'ok' }); continue; }
+      const arrival = new Date(Date.now() + cumSeconds * 1000);
+      const status = arrival < earliest ? 'ok'
+        : arrival < new Date(earliest.getTime() + 30 * 60_000) ? 'tight' : 'closed';
+      times.push({ departBy: earliest, status });
     }
     return times;
   }, [legs, schedule, closureMinutes, eventDate]);
+
+  // Combined stops array for the map (origin + visit stops)
+  const mapStops = useMemo(() => {
+    const result: Stop[] = [];
+    if (originId) result.push({ id: 'origin', pointId: originId });
+    result.push(...stops);
+    return result;
+  }, [originId, stops]);
 
   return (
     <main className="flex-1 flex flex-col min-h-0 bg-slate-50">
@@ -256,208 +342,173 @@ export function DeploymentPlanner({ onClose }: { onClose: () => void }) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6">
-        <div className="max-w-4xl mx-auto space-y-6">
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="max-w-5xl mx-auto space-y-4">
 
-          {/* Setup */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Setup — condensed 3-col grid */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-            {/* Origin + stops */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-700">Visit sequence</h3>
-
-              <label className="block text-xs">
-                <span className="font-medium text-slate-700">Origin (Service Park / Rally HQ)</span>
-                <select
-                  value={originId}
-                  onChange={(e) => setOriginId(e.target.value)}
-                  className="mt-1 w-full text-xs rounded border border-slate-300 px-2 py-1.5"
-                >
-                  <option value="">— select origin point —</option>
-                  {/* Facility points (Service Park, HQ, Parc Fermé) listed first */}
-                  {allPoints.filter((p) => FACILITY_CATEGORIES.has(effectiveCategory(p)) && effectiveCategory(p) !== 'other').map((p) => (
-                    <option key={p.id} value={p.id}>{pointLabel(p)}</option>
-                  ))}
-                  {allPoints.filter((p) => !FACILITY_CATEGORIES.has(effectiveCategory(p)) || effectiveCategory(p) === 'other').map((p) => (
-                    <option key={p.id} value={p.id}>{pointLabel(p)}</option>
-                  ))}
-                </select>
-              </label>
-
-              <div className="space-y-1">
+            {/* Visit sequence */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Visit sequence</h3>
+              <select value={originId} onChange={(e) => setOriginId(e.target.value)}
+                className="w-full text-xs rounded border border-slate-300 px-2 py-1.5">
+                <option value="">— origin —</option>
+                {allPoints.filter((p) => FACILITY_CATEGORIES.has(effectiveCategory(p)) && effectiveCategory(p) !== 'other').map((p) => (
+                  <option key={p.id} value={p.id}>{pointLabel(p)}</option>
+                ))}
+                {allPoints.filter((p) => !FACILITY_CATEGORIES.has(effectiveCategory(p)) || effectiveCategory(p) === 'other').map((p) => (
+                  <option key={p.id} value={p.id}>{pointLabel(p)}</option>
+                ))}
+              </select>
+              <div className="space-y-1 max-h-40 overflow-y-auto">
                 {stops.map((stop, idx) => {
                   const pt = allPoints.find((p) => p.id === stop.pointId);
                   return (
-                    <div key={stop.id} className="flex items-center gap-1 text-xs rounded border border-slate-200 bg-white px-2 py-1.5">
-                      <span className="text-slate-400 w-4 text-center">{idx + 1}</span>
+                    <div key={stop.id} className="flex items-center gap-1 text-xs rounded border border-slate-200 bg-white px-2 py-1">
+                      <span className="text-slate-400 w-4 text-center shrink-0">{idx + 1}</span>
                       <span className="flex-1 truncate">{pt ? pointLabel(pt) : '—'}</span>
                       <button type="button" onClick={() => moveStop(idx, -1)} disabled={idx === 0}
-                        className="px-1 text-slate-400 hover:text-slate-700 disabled:opacity-30">↑</button>
+                        className="text-slate-400 hover:text-slate-700 disabled:opacity-30">↑</button>
                       <button type="button" onClick={() => moveStop(idx, 1)} disabled={idx === stops.length - 1}
-                        className="px-1 text-slate-400 hover:text-slate-700 disabled:opacity-30">↓</button>
-                      <button type="button"
-                        onClick={() => setStops(stops.filter((_, i) => i !== idx))}
-                        className="px-1 text-slate-400 hover:text-red-600">✕</button>
+                        className="text-slate-400 hover:text-slate-700 disabled:opacity-30">↓</button>
+                      <button type="button" onClick={() => setStops(stops.filter((_, i) => i !== idx))}
+                        className="text-slate-400 hover:text-red-600">✕</button>
                     </div>
                   );
                 })}
               </div>
-
-              <select
-                value=""
-                onChange={(e) => {
-                  if (!e.target.value) return;
-                  setStops([...stops, newStop(e.target.value)]);
-                  e.target.value = '';
-                }}
-                className="w-full text-xs rounded border border-dashed border-slate-300 px-2 py-1.5 hover:border-slate-500"
-              >
+              <select value="" onChange={(e) => { if (!e.target.value) return; setStops([...stops, newStop(e.target.value)]); (e.target as HTMLSelectElement).value = ''; }}
+                className="w-full text-xs rounded border border-dashed border-slate-300 px-2 py-1.5">
                 <option value="">+ Add stop…</option>
-                {allPoints
-                  .filter((p) => p.id !== originId)
-                  .map((p) => (
-                    <option key={p.id} value={p.id}>{pointLabel(p)}</option>
-                  ))}
+                {allPoints.filter((p) => p.id !== originId).map((p) => (
+                  <option key={p.id} value={p.id}>{pointLabel(p)}</option>
+                ))}
               </select>
             </div>
 
-            {/* Schedule + closure */}
-            <div className="space-y-3">
-              <h3 className="text-sm font-semibold text-slate-700">Stage schedule</h3>
-              <label className="block text-xs">
-                <span className="font-medium text-slate-700">Event date</span>
-                <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
-                  className="mt-1 w-full rounded border border-slate-300 px-2 py-1 text-xs" />
-              </label>
-              <div className="space-y-1">
+            {/* Stage schedule */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Stage schedule</h3>
+              <input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)}
+                className="w-full text-xs rounded border border-slate-300 px-2 py-1.5" />
+              <div className="space-y-1 max-h-44 overflow-y-auto">
                 {schedule.map((sch, i) => (
                   <label key={sch.stageId} className="flex items-center gap-2 text-xs">
-                    <span className="font-mono text-slate-700 w-16 truncate">{sch.stageName}</span>
+                    <span className="font-mono text-slate-700 w-14 truncate">{sch.stageName}</span>
                     <input type="time" value={sch.startTime}
-                      onChange={(e) => {
-                        const next = [...schedule];
-                        next[i] = { ...next[i], startTime: e.target.value };
-                        setSchedule(next);
-                      }}
+                      onChange={(e) => { const n = [...schedule]; n[i] = { ...n[i], startTime: e.target.value }; setSchedule(n); }}
                       className="rounded border border-slate-300 px-2 py-0.5 text-xs" />
-                    <span className="text-slate-400">start</span>
-                  </label>
-                ))}
-              </div>
-
-              <h3 className="text-sm font-semibold text-slate-700 pt-1">Road closure window</h3>
-              <div className="flex gap-2 flex-wrap text-xs">
-                {(['public', 'org', 'safety'] as const).map((role) => (
-                  <button key={role} type="button"
-                    onClick={() => setClosure((c) => ({ ...c, role }))}
-                    className={[
-                      'px-2 py-1 rounded border',
-                      closure.role === role ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-300 hover:bg-slate-50',
-                    ].join(' ')}>
-                    {role === 'public' ? `Public (T−${closure.publicMinutes}min)` :
-                      role === 'org' ? `Org team (T−${closure.orgMinutes}min)` :
-                        `Safety delegate (T−${closure.safetyMinutes}min)`}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-2 text-xs">
-                {([
-                  { key: 'publicMinutes', label: 'Public cutoff (min)' },
-                  { key: 'orgMinutes', label: 'Org cutoff (min)' },
-                  { key: 'safetyMinutes', label: 'Safety cutoff (min)' },
-                ] as const).map(({ key, label }) => (
-                  <label key={key} className="block">
-                    <span className="text-slate-600">{label}</span>
-                    <input type="number" min={0} value={closure[key]}
-                      onChange={(e) => setClosure((c) => ({ ...c, [key]: parseInt(e.target.value) || 0 }))}
-                      className="mt-0.5 w-full rounded border border-slate-300 px-2 py-0.5 font-mono" />
                   </label>
                 ))}
               </div>
             </div>
-          </div>
 
-          {/* Calculate button */}
-          <button
-            type="button"
-            disabled={waypoints.length < 2 || routing}
-            onClick={() => void calculateRoutes()}
-            className="px-4 py-2 rounded bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
-          >
-            {routing ? 'Calculating routes via OSRM…' : `Calculate routes (${waypoints.length - 1} leg${waypoints.length !== 2 ? 's' : ''})`}
-          </button>
+            {/* Closure params */}
+            <div className="space-y-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-600">Road closure window</h3>
+              <div className="flex gap-1 flex-wrap">
+                {(['public','org','safety'] as const).map((role) => (
+                  <button key={role} type="button" onClick={() => setClosure((c) => ({ ...c, role }))}
+                    className={['text-xs px-2 py-1 rounded border', closure.role === role ? 'bg-slate-900 text-white border-slate-900' : 'border-slate-300 hover:bg-slate-50'].join(' ')}>
+                    {role === 'public' ? `Public −${closure.publicMinutes}m` : role === 'org' ? `Org −${closure.orgMinutes}m` : `Safety −${closure.safetyMinutes}m`}
+                  </button>
+                ))}
+              </div>
+              <div className="grid grid-cols-3 gap-1 text-xs">
+                {([['publicMinutes','Public'],['orgMinutes','Org'],['safetyMinutes','Safety']] as const).map(([key, lbl]) => (
+                  <label key={key} className="block">
+                    <span className="text-slate-500 text-[10px]">{lbl} (min)</span>
+                    <input type="number" min={0} value={closure[key]}
+                      onChange={(e) => setClosure((c) => ({ ...c, [key]: parseInt(e.target.value) || 0 }))}
+                      className="mt-0.5 w-full rounded border border-slate-300 px-1.5 py-0.5 font-mono text-xs" />
+                  </label>
+                ))}
+              </div>
+              <button type="button" disabled={waypoints.length < 2 || routing}
+                onClick={() => void calculateRoutes()}
+                className="w-full text-xs px-3 py-2 rounded bg-blue-600 text-white hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed mt-2">
+                {routing ? 'Calculating…' : `Calculate routes (${Math.max(0, waypoints.length - 1)} leg${waypoints.length !== 2 ? 's' : ''})`}
+              </button>
+            </div>
+          </div>
 
           {routeError && (
             <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded px-3 py-2">{routeError}</div>
           )}
 
-          {/* Results */}
+          {/* Map — always visible, tall */}
+          <div className="space-y-1">
+            <div className="flex items-center gap-3 text-[11px] text-slate-500">
+              <span className="flex items-center gap-1"><span className="w-5 h-0.5 bg-blue-600 inline-block rounded" /> Route A (direct)</span>
+              <span className="flex items-center gap-1"><span className="w-5 inline-block border-t-2 border-red-500 border-dashed" /> Route B (alternative)</span>
+              {stageGeos.map((s) => (
+                <span key={s.id} className="flex items-center gap-1">
+                  <span className="w-5 h-1 inline-block rounded" style={{ background: s.color }} />
+                  {s.name}
+                </span>
+              ))}
+            </div>
+            <RouteMap
+              legs={legs}
+              stops={mapStops}
+              allPoints={allPoints}
+              stageGeos={stageGeos}
+              importantPoints={importantPoints}
+              hiddenLegs={hiddenLegs}
+            />
+          </div>
+
+          {/* Route itinerary */}
           {legs.length > 0 && (
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-slate-700">Route itinerary</h3>
-
-              {/* Legend */}
-              <div className="flex gap-4 text-[11px] text-slate-600">
-                <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-blue-600 inline-block" /> Route A (direct / via stage)</span>
-                <span className="flex items-center gap-1"><span className="w-6 h-0.5 bg-red-500 inline-block border-dashed" style={{ borderTop: '2px dashed' }} /> Route B (alternative)</span>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-semibold text-slate-700">Itinerary</h3>
+                <div className="flex gap-1">
+                  <button type="button" onClick={() => setHiddenLegs(new Set())}
+                    className="text-xs px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-50">Show all</button>
+                  <button type="button" onClick={() => setHiddenLegs(new Set(legs.map((_, i) => i)))}
+                    className="text-xs px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-50">Hide all</button>
+                </div>
               </div>
-
-              {/* Map */}
-              <RouteMap legs={legs} stops={[{ id: 'origin', pointId: originId }, ...stops]} points={allPoints} />
-
-              {/* Leg table */}
-              <ul className="space-y-2">
+              <ul className="space-y-1.5">
                 {legs.map((leg, i) => {
                   const timing = departureTimes[i];
-                  const statusColor = !timing ? '' :
-                    timing.status === 'ok' ? 'border-emerald-200 bg-emerald-50' :
-                      timing.status === 'tight' ? 'border-amber-200 bg-amber-50' :
-                        'border-red-200 bg-red-50';
-
+                  const hidden = hiddenLegs.has(i);
+                  const statusColor = hidden ? 'border-slate-200 bg-white opacity-50'
+                    : !timing || timing.status === 'ok' ? 'border-slate-200 bg-white'
+                      : timing.status === 'tight' ? 'border-amber-200 bg-amber-50'
+                        : 'border-red-200 bg-red-50';
                   return (
-                    <li key={i} className={`rounded border px-3 py-2 space-y-1 text-xs ${statusColor || 'border-slate-200 bg-white'}`}>
-                      <div className="font-medium text-slate-700">
-                        Leg {i + 1}: {leg.from} → {leg.to}
+                    <li key={i} className={`rounded border px-3 py-2 text-xs ${statusColor}`}>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-medium text-slate-700">
+                          Leg {i + 1}: {leg.from} → {leg.to}
+                        </span>
+                        <button type="button" onClick={() => toggleLeg(i)}
+                          className={['px-2 py-0.5 rounded border text-[11px]', hidden ? 'bg-slate-100 border-slate-300 text-slate-500' : 'border-blue-300 text-blue-700 hover:bg-blue-50'].join(' ')}
+                          title={hidden ? 'Show on map' : 'Hide from map'}>
+                          {hidden ? '○ Hidden' : '● Visible'}
+                        </button>
                       </div>
                       {leg.error ? (
-                        <div className="text-red-700">Routing failed: {leg.error}</div>
+                        <p className="text-red-700 mt-1">Routing failed: {leg.error}</p>
                       ) : (
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-0.5 text-slate-600">
-                          {leg.routeA && (
-                            <>
-                              <span className="text-blue-700 font-medium">Route A</span>
-                              <span>{formatDistance(leg.routeA.distance)} · {formatDuration(leg.routeA.duration)}</span>
-                            </>
-                          )}
-                          {leg.routeB && (
-                            <>
-                              <span className="text-red-600 font-medium">Route B</span>
-                              <span>{formatDistance(leg.routeB.distance)} · {formatDuration(leg.routeB.duration)}</span>
-                            </>
-                          )}
-                          {timing?.departBy && (
-                            <>
-                              <span className="font-medium">Stage road closes</span>
-                              <span>{timing.departBy.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
-                            </>
-                          )}
+                        <div className="grid grid-cols-2 gap-x-4 mt-1 text-slate-600">
+                          {leg.routeA && <><span className="text-blue-700 font-medium">Route A</span><span>{formatDistance(leg.routeA.distance)} · {formatDuration(leg.routeA.duration)}</span></>}
+                          {leg.routeB && <><span className="text-red-600 font-medium">Route B</span><span>{formatDistance(leg.routeB.distance)} · {formatDuration(leg.routeB.duration)}</span></>}
+                          {timing?.departBy && <><span className="font-medium">Close at</span><span>{timing.departBy.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</span></>}
                         </div>
                       )}
-                      {timing?.status === 'tight' && (
-                        <div className="text-amber-800">⚠ Tight window — use Route B or depart earlier.</div>
-                      )}
-                      {timing?.status === 'closed' && (
-                        <div className="text-red-800">✗ Stage road likely closed at estimated arrival — use Route B.</div>
-                      )}
+                      {timing?.status === 'tight' && <p className="text-amber-800 mt-1">⚠ Tight — use Route B or depart earlier.</p>}
+                      {timing?.status === 'closed' && <p className="text-red-800 mt-1">✗ Stage closes before arrival — use Route B.</p>}
                     </li>
                   );
                 })}
               </ul>
-
-              {/* Summary */}
               {legs.every((l) => l.routeA || l.routeB) && (
                 <div className="rounded border border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
-                  <span className="font-semibold">Total via Route A: </span>
+                  <span className="font-semibold">Total (Route A): </span>
                   {formatDistance(legs.reduce((s, l) => s + (l.routeA?.distance ?? l.routeB?.distance ?? 0), 0))}
                   {' · '}
                   {formatDuration(legs.reduce((s, l) => s + (l.routeA?.duration ?? l.routeB?.duration ?? 0), 0))}
