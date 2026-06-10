@@ -71,6 +71,15 @@ export interface SourceFile {
   sizeBytes: number;
 }
 
+export type ZoneCategory = 'service_park' | 'parc_ferme' | 'hq' | 'other';
+
+export interface ManualZone {
+  id: string;
+  name: string;
+  category: ZoneCategory;
+  coords: LngLatAlt[];
+}
+
 export interface DeploymentPlan {
   originId: string;
   stops: { id: string; pointId: string }[];
@@ -92,6 +101,7 @@ export interface ProjectState {
   stages: Stage[];
   bufferRadiusDefault: number;
   deploymentPlan?: DeploymentPlan;
+  manualZones?: ManualZone[];
 }
 
 export interface ParseResult {

@@ -1,12 +1,14 @@
 import type {
   DeploymentPlan,
   LngLatAlt,
+  ManualZone,
   ParseResult,
   ParsedTrack,
   PointCategory,
   ProjectState,
   Stage,
   StageLeg,
+  ZoneCategory,
 } from '../types';
 import { classifyPoint } from '../classify/pointCategory';
 import { autoOrientLeg, defaultExportName } from './selectors';
@@ -56,7 +58,12 @@ export type ProjectAction =
       pointId: string;
       stageId: string | null | undefined;
     }
-  | { type: 'SET_DEPLOYMENT_PLAN'; plan: DeploymentPlan };
+  | { type: 'SET_DEPLOYMENT_PLAN'; plan: DeploymentPlan }
+  | { type: 'ADD_MANUAL_POINT'; name: string; category: PointCategory; coord: LngLatAlt }
+  | { type: 'REMOVE_MANUAL_POINT'; pointId: string }
+  | { type: 'ADD_ZONE'; name: string; category: ZoneCategory; coords: LngLatAlt[] }
+  | { type: 'REMOVE_ZONE'; zoneId: string }
+  | { type: 'UPDATE_ZONE_NAME'; zoneId: string; name: string };
 
 function makeStage(
   trackId: string,
@@ -307,6 +314,38 @@ export function projectReducer(
       };
     case 'SET_DEPLOYMENT_PLAN':
       return { ...state, deploymentPlan: action.plan };
+    case 'ADD_MANUAL_POINT': {
+      const point = {
+        id: newId(),
+        sourceFileId: '__manual__',
+        name: action.name,
+        folderPath: [],
+        styleUrl: '',
+        coord: action.coord,
+        category: action.category,
+      };
+      return { ...state, points: [...state.points, point] };
+    }
+    case 'REMOVE_MANUAL_POINT':
+      return {
+        ...state,
+        points: state.points.filter(
+          (p) => !(p.id === action.pointId && p.sourceFileId === '__manual__'),
+        ),
+      };
+    case 'ADD_ZONE': {
+      const zone: ManualZone = { id: newId(), name: action.name, category: action.category, coords: action.coords };
+      return { ...state, manualZones: [...(state.manualZones ?? []), zone] };
+    }
+    case 'REMOVE_ZONE':
+      return { ...state, manualZones: (state.manualZones ?? []).filter((z) => z.id !== action.zoneId) };
+    case 'UPDATE_ZONE_NAME':
+      return {
+        ...state,
+        manualZones: (state.manualZones ?? []).map((z) =>
+          z.id === action.zoneId ? { ...z, name: action.name } : z,
+        ),
+      };
     default:
       return state;
   }

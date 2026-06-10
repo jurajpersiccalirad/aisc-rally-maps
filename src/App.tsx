@@ -17,6 +17,7 @@ import { StagesPanel } from './ui/StagesPanel';
 import { TrackList } from './ui/TrackList';
 import { AdminPage } from './ui/admin/AdminPage';
 import { DeploymentPlanner } from './ui/DeploymentPlanner';
+import { ManualEditor } from './ui/ManualEditor';
 import { RallyTimeline } from './ui/RallyTimeline';
 import { UserEventList } from './ui/UserEventList';
 import { RequireAuth } from './ui/auth/RequireAuth';
@@ -25,6 +26,7 @@ import type {
   CropMode,
   FocusTarget,
   HoverState,
+  MapEditMode,
   Visibility,
   VisibilityActions,
 } from './ui/workspaceTypes';
@@ -35,6 +37,7 @@ function Workspace() {
 
   const [hover, setHover] = useState<HoverState | null>(null);
   const [cropMode, setCropMode] = useState<CropMode>(null);
+  const [mapEditMode, setMapEditMode] = useState<MapEditMode>(null);
   const [hiddenStageIds, setHiddenStageIds] = useState<Set<string>>(new Set());
   const [hiddenTrackIds, setHiddenTrackIds] = useState<Set<string>>(new Set());
   const [hiddenCategories, setHiddenCategories] = useState<Set<PointCategory>>(
@@ -115,6 +118,7 @@ function Workspace() {
           visibilityActions={visibilityActions}
           onFocusPoint={focusPoint}
         />
+        <ManualEditor mapEditMode={mapEditMode} onMapEditModeChange={setMapEditMode} />
       </aside>
       <section className="flex-1 relative min-w-0">
         <MapView
@@ -124,6 +128,8 @@ function Workspace() {
           setCropMode={setCropMode}
           visibility={visibility}
           focusTarget={focusTarget}
+          mapEditMode={mapEditMode}
+          onMapEditModeChange={setMapEditMode}
         />
       </section>
     </main>

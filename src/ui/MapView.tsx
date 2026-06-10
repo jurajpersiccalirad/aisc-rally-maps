@@ -8,6 +8,7 @@ import {
 } from '@turf/turf';
 import { useEffect, useMemo } from 'react';
 import {
+  CircleMarker,
   MapContainer,
   Marker,
   Polygon as LPolygon,
@@ -42,6 +43,7 @@ import type {
   CropMode,
   FocusTarget,
   HoverState,
+  MapEditMode,
   Visibility,
 } from './workspaceTypes';
 
@@ -226,6 +228,40 @@ function CropClickHandler({
         cropEnd: cropMode.edge === 'end' ? f : undefined,
       });
       setCropMode(null);
+    },
+  });
+  return null;
+}
+
+function CursorForEditMode({ mapEditMode }: { mapEditMode: MapEditMode }) {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    if (mapEditMode) el.style.cursor = 'crosshair';
+    else el.style.cursor = '';
+    return () => { el.style.cursor = ''; };
+  }, [map, mapEditMode]);
+  return null;
+}
+
+function MapEditClickHandler({
+  mapEditMode,
+  onMapEditModeChange,
+}: {
+  mapEditMode: MapEditMode;
+  onMapEditModeChange: (mode: MapEditMode) => void;
+}) {
+  const dispatch = useProjectDispatch();
+  useMapEvents({
+    click: (e) => {
+      if (!mapEditMode) return;
+      const coord: LngLatAlt = [e.latlng.lng, e.latlng.lat];
+      if (mapEditMode.kind === 'place_point') {
+        dispatch({ type: 'ADD_MANUAL_POINT', name: mapEditMode.name, category: mapEditMode.category, coord });
+        onMapEditModeChange(null);
+      } else if (mapEditMode.kind === 'draw_zone') {
+        onMapEditModeChange({ ...mapEditMode, vertices: [...mapEditMode.vertices, coord] });
+      }
     },
   });
   return null;
@@ -437,6 +473,8 @@ interface Props {
   setCropMode: (m: CropMode) => void;
   visibility: Visibility;
   focusTarget: FocusTarget | null;
+  mapEditMode: MapEditMode;
+  onMapEditModeChange: (mode: MapEditMode) => void;
 }
 
 export function MapView({
@@ -446,6 +484,8 @@ export function MapView({
   setCropMode,
   visibility,
   focusTarget,
+  mapEditMode,
+  onMapEditModeChange,
 }: Props) {
   const state = useProject();
   const { tracks, points, stages } = state;
@@ -467,6 +507,8 @@ export function MapView({
 
       <CursorForCropMode cropMode={cropMode} />
       <CropClickHandler cropMode={cropMode} setCropMode={setCropMode} />
+      <CursorForEditMode mapEditMode={mapEditMode} />
+      <MapEditClickHandler mapEditMode={mapEditMode} onMapEditModeChange={onMapEditModeChange} />
       <FocusHandler focusTarget={focusTarget} />
 
       {/* Unassigned tracks rendered dim & thin */}
@@ -603,6 +645,39 @@ export function MapView({
           </Marker>
         );
       })}
+
+      {/* Manual zones */}
+      {(state.manualZones ?? []).map((zone) => {
+        const meta = CATEGORY_META[zone.category];
+        return (
+          <LPolygon
+            key={zone.id}
+            positions={zone.coords.map((c) => [c[1], c[0]] as [number, number])}
+            pathOptions={{ color: meta.color, fillColor: meta.color, fillOpacity: 0.18, weight: 2 }}
+          >
+            <Tooltip sticky>{zone.name}</Tooltip>
+          </LPolygon>
+        );
+      })}
+
+      {/* Pending zone being drawn */}
+      {mapEditMode?.kind === 'draw_zone' && mapEditMode.vertices.length >= 2 && (
+        <LPolygon
+          positions={mapEditMode.vertices.map((v) => [v[1], v[0]] as [number, number])}
+          pathOptions={{ color: '#7c3aed', fillOpacity: 0.12, dashArray: '6 4', weight: 2 }}
+          interactive={false}
+        />
+      )}
+      {mapEditMode?.kind === 'draw_zone' &&
+        mapEditMode.vertices.map((v, i) => (
+          <CircleMarker
+            key={i}
+            center={[v[1], v[0]]}
+            radius={5}
+            pathOptions={{ color: '#7c3aed', fillColor: 'white', fillOpacity: 1, weight: 2 }}
+            interactive={false}
+          />
+        ))}
 
       <FitToData tracks={tracks} points={points} />
     </MapContainer>

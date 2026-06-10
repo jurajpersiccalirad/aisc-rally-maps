@@ -88,7 +88,7 @@ export function PointList({
               <ul className="px-2 pb-2 space-y-1.5 border-t border-slate-100 pt-2">
                 {list.map((p) => (
                   <li key={p.id} className="space-y-1">
-                    <div className="flex items-start gap-1">
+                    <div className="flex items-start gap-1 group">
                       <button
                         type="button"
                         onClick={() => onFocusPoint(p.id)}
@@ -97,6 +97,9 @@ export function PointList({
                       >
                         <div className="text-xs font-medium truncate">
                           {p.name || p.description || '(unnamed)'}
+                          {p.sourceFileId === '__manual__' && (
+                            <span className="ml-1 text-[9px] text-violet-500 font-normal">manual</span>
+                          )}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono truncate">
                           {p.coord[1].toFixed(5)},{' '}
@@ -111,6 +114,16 @@ export function PointList({
                       >
                         <TargetIcon />
                       </button>
+                      {p.sourceFileId === '__manual__' && (
+                        <button
+                          type="button"
+                          onClick={() => dispatch({ type: 'REMOVE_MANUAL_POINT', pointId: p.id })}
+                          className="text-slate-300 hover:text-red-500 text-sm leading-none p-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                          title="Remove manual point"
+                        >
+                          ×
+                        </button>
+                      )}
                     </div>
                     <div className="flex items-center gap-1 text-[11px]">
                       <select

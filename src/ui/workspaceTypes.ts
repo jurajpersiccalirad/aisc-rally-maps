@@ -1,4 +1,4 @@
-import type { PointCategory } from '../types';
+import type { LngLatAlt, PointCategory, ZoneCategory } from '../types';
 
 export type HoverState =
   | { kind: 'track'; trackId: string }
@@ -25,3 +25,8 @@ export type FocusTarget =
   | { kind: 'track'; trackId: string; nonce: number }
   | { kind: 'stage'; stageId: string; nonce: number }
   | { kind: 'point'; pointId: string; nonce: number };
+
+export type MapEditMode =
+  | { kind: 'place_point'; name: string; category: PointCategory }
+  | { kind: 'draw_zone'; name: string; category: ZoneCategory; vertices: LngLatAlt[] }
+  | null;
