@@ -1,4 +1,5 @@
 import type {
+  DeploymentPlan,
   LngLatAlt,
   ParseResult,
   ParsedTrack,
@@ -54,7 +55,8 @@ export type ProjectAction =
       type: 'OVERRIDE_POINT_STAGE';
       pointId: string;
       stageId: string | null | undefined;
-    };
+    }
+  | { type: 'SET_DEPLOYMENT_PLAN'; plan: DeploymentPlan };
 
 function makeStage(
   trackId: string,
@@ -303,6 +305,8 @@ export function projectReducer(
             : p,
         ),
       };
+    case 'SET_DEPLOYMENT_PLAN':
+      return { ...state, deploymentPlan: action.plan };
     default:
       return state;
   }

@@ -17,6 +17,7 @@ import { StagesPanel } from './ui/StagesPanel';
 import { TrackList } from './ui/TrackList';
 import { AdminPage } from './ui/admin/AdminPage';
 import { DeploymentPlanner } from './ui/DeploymentPlanner';
+import { RallyTimeline } from './ui/RallyTimeline';
 import { UserEventList } from './ui/UserEventList';
 import { RequireAuth } from './ui/auth/RequireAuth';
 import { UserBadge } from './ui/auth/UserBadge';
@@ -31,8 +32,6 @@ import type {
 function Workspace() {
   const state = useProject();
   const hasFile = state.sourceFiles.length > 0;
-
-  useAutoSave(state);
 
   const [hover, setHover] = useState<HoverState | null>(null);
   const [cropMode, setCropMode] = useState<CropMode>(null);
@@ -131,11 +130,12 @@ function Workspace() {
   );
 }
 
-type Panel = 'editor' | 'admin' | 'myevents' | 'deploy' | 'feedback';
+type Panel = 'editor' | 'admin' | 'myevents' | 'deploy' | 'timeline' | 'feedback';
 
 function Shell() {
   const { user } = useAuth();
   const [panel, setPanel] = useState<Panel>('editor');
+  useAutoSave(useProject());
   const isAdmin = user?.role === 'ADMIN';
 
   return (
@@ -165,6 +165,15 @@ function Shell() {
               className="text-xs px-3 py-1.5 rounded border border-blue-300 text-blue-700 hover:bg-blue-50"
             >
               Deployment
+            </button>
+          )}
+          {user && panel === 'editor' && (
+            <button
+              type="button"
+              onClick={() => setPanel('timeline')}
+              className="text-xs px-3 py-1.5 rounded border border-violet-300 text-violet-700 hover:bg-violet-50"
+            >
+              Timeline
             </button>
           )}
           {isAdmin && panel === 'editor' && (
@@ -197,6 +206,8 @@ function Shell() {
         <UserEventList onClose={() => setPanel('editor')} />
       ) : panel === 'deploy' ? (
         <DeploymentPlanner onClose={() => setPanel('editor')} />
+      ) : panel === 'timeline' ? (
+        <RallyTimeline onClose={() => setPanel('editor')} />
       ) : panel === 'feedback' ? (
         <FeedbackPanel onClose={() => setPanel('editor')} />
       ) : (

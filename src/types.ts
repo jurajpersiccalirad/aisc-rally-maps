@@ -71,6 +71,17 @@ export interface SourceFile {
   sizeBytes: number;
 }
 
+export interface DeploymentPlan {
+  originId: string;
+  stops: { id: string; pointId: string }[];
+  waitTimes: Record<string, number>;
+  stageSchedule: { stageId: string; stageName: string; startTime: string }[];
+  eventDate: string;
+  closure: { publicMinutes: number; orgMinutes: number; safetyMinutes: number; role: 'public' | 'org' | 'safety' };
+  departureTime: string;
+  selectedOptions: Record<string, number>;
+}
+
 export interface ProjectState {
   eventName: string;
   /** Human-readable version label for this event snapshot, e.g. "v1", "Final". */
@@ -80,6 +91,7 @@ export interface ProjectState {
   points: ParsedPoint[];
   stages: Stage[];
   bufferRadiusDefault: number;
+  deploymentPlan?: DeploymentPlan;
 }
 
 export interface ParseResult {
