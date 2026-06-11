@@ -1,4 +1,7 @@
+import type { CoordFormat } from '../lib/formatCoord';
 import type { LngLatAlt, PointCategory, ZoneCategory } from '../types';
+
+export type { CoordFormat };
 
 export type HoverState =
   | { kind: 'track'; trackId: string }
@@ -12,6 +15,7 @@ export interface Visibility {
   hiddenCategories: ReadonlySet<PointCategory>;
   hiddenPointIds: ReadonlySet<string>;
   showBuffers: boolean;
+  coordFormat: CoordFormat;
 }
 
 export interface VisibilityActions {
@@ -20,6 +24,7 @@ export interface VisibilityActions {
   toggleCategory(c: PointCategory): void;
   togglePoint(id: string): void;
   toggleBuffers(): void;
+  setCoordFormat(f: CoordFormat): void;
   showAll(): void;
 }
 

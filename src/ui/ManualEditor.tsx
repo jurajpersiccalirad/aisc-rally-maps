@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER } from '../classify/categoryMeta';
+import { parseCoordInput } from '../lib/formatCoord';
 import { effectiveCategory } from '../state/selectors';
 import { useProject, useProjectDispatch } from '../state/useProject';
 import type { PointCategory, ZoneCategory } from '../types';
@@ -18,8 +19,12 @@ export function ManualEditor({ mapEditMode, onMapEditModeChange }: Props) {
 
   const [pointName, setPointName] = useState('');
   const [pointCat, setPointCat] = useState<PointCategory>('other');
+  const [coordInput, setCoordInput] = useState('');
   const [zoneName, setZoneName] = useState('');
   const [zoneCat, setZoneCat] = useState<ZoneCategory>('other');
+
+  const parsedCoord = parseCoordInput(coordInput);
+  const canPlaceByCoord = !!parsedCoord && pointName.trim().length > 0;
 
   const manualPoints = state.points.filter((p) => p.sourceFileId === '__manual__');
   const zones = state.manualZones ?? [];
@@ -45,6 +50,12 @@ export function ManualEditor({ mapEditMode, onMapEditModeChange }: Props) {
   };
 
   const cancel = () => onMapEditModeChange(null);
+
+  const placeByCoord = () => {
+    if (!parsedCoord || !pointName.trim()) return;
+    dispatch({ type: 'ADD_MANUAL_POINT', name: pointName.trim(), category: pointCat, coord: [parsedCoord[0], parsedCoord[1], 0] });
+    setCoordInput('');
+  };
 
   const hasContent = manualPoints.length > 0 || zones.length > 0;
 
@@ -94,6 +105,32 @@ export function ManualEditor({ mapEditMode, onMapEditModeChange }: Props) {
               Place on map
             </button>
           )}
+          <div className="border-t border-slate-100 pt-1.5 space-y-1">
+            <div className="text-[10px] text-slate-400">or enter coordinates (lat, lng):</div>
+            <div className="flex gap-1">
+              <input
+                type="text"
+                value={coordInput}
+                onChange={(e) => setCoordInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && canPlaceByCoord) placeByCoord(); }}
+                placeholder="e.g. 60.12345, 25.45678"
+                disabled={isPlacing}
+                className={[
+                  'flex-1 min-w-0 rounded border px-1.5 py-1 text-[11px] font-mono disabled:bg-slate-50',
+                  coordInput && !parsedCoord ? 'border-red-300' : 'border-slate-300',
+                ].join(' ')}
+              />
+              <button
+                type="button"
+                onClick={placeByCoord}
+                disabled={!canPlaceByCoord}
+                className="text-[11px] px-2 py-1 rounded bg-slate-800 text-white hover:bg-slate-700 disabled:bg-slate-300 flex-shrink-0"
+                title={!pointName.trim() ? 'Enter a name first' : !parsedCoord ? 'Invalid coordinates' : 'Add point at this coordinate'}
+              >
+                Add
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

@@ -23,6 +23,7 @@ import { UserEventList } from './ui/UserEventList';
 import { RequireAuth } from './ui/auth/RequireAuth';
 import { UserBadge } from './ui/auth/UserBadge';
 import type {
+  CoordFormat,
   CropMode,
   FocusTarget,
   HoverState,
@@ -43,6 +44,7 @@ function Workspace() {
   const [hiddenCategories, setHiddenCategories] = useState<Set<PointCategory>>(new Set());
   const [hiddenPointIds, setHiddenPointIds] = useState<Set<string>>(new Set());
   const [showBuffers, setShowBuffers] = useState(true);
+  const [coordFormat, setCoordFormat] = useState<CoordFormat>('decimal');
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
   const visibility: Visibility = {
@@ -51,6 +53,7 @@ function Workspace() {
     hiddenCategories,
     hiddenPointIds,
     showBuffers,
+    coordFormat,
   };
 
   const toggleSet = useCallback(
@@ -71,6 +74,7 @@ function Workspace() {
     toggleCategory: toggleSet(setHiddenCategories),
     togglePoint: toggleSet(setHiddenPointIds),
     toggleBuffers: () => setShowBuffers((v) => !v),
+    setCoordFormat,
     showAll: () => {
       setHiddenStageIds(new Set());
       setHiddenTrackIds(new Set());

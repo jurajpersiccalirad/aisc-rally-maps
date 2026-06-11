@@ -31,7 +31,7 @@ export type ProjectAction =
   | { type: 'RESET' }
   | { type: 'SET_EVENT_NAME'; name: string }
   | { type: 'SET_VERSION'; version: string }
-  | { type: 'RECLASSIFY_ALL_POINTS' }
+  | { type: 'RECLASSIFY_ALL_POINTS'; geoAssignments: Record<string, string> }
   | { type: 'ADD_STAGE'; trackId: string }
   | { type: 'ADD_ALL_TRACKS_AS_STAGES' }
   | { type: 'ADD_TRACK_TO_STAGE'; stageId: string; trackId: string }
@@ -152,14 +152,13 @@ export function projectReducer(
     case 'RECLASSIFY_ALL_POINTS':
       return {
         ...state,
-        points: state.points.map((p) => ({
-          ...p,
-          category: classifyPoint({
-            name: p.name,
-            description: p.description,
-            styleUrl: p.styleUrl,
-          }),
-        })),
+        points: state.points.map((p) => {
+          const category = classifyPoint({ name: p.name, description: p.description, styleUrl: p.styleUrl });
+          const geoStageId = p.stageOverride === undefined ? action.geoAssignments[p.id] : undefined;
+          return geoStageId !== undefined
+            ? { ...p, category, stageOverride: geoStageId }
+            : { ...p, category };
+        }),
       };
     case 'ADD_STAGE': {
       if (allStagedTrackIds(state.stages).has(action.trackId)) return state;

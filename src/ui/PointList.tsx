@@ -1,14 +1,17 @@
 import { useMemo } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER } from '../classify/categoryMeta';
+import { pointInMultiPoly } from '../geometry/pointInMultiPoly';
+import { formatCoord } from '../lib/formatCoord';
 import {
   effectiveCategory,
   getEffectivePointStages,
 } from '../state/selectors';
+import { useStageGeometry } from '../state/useStageGeometry';
 import { useProject, useProjectDispatch } from '../state/useProject';
 import type { ParsedPoint, PointCategory } from '../types';
 import { EyeIcon, EyeOffIcon, TargetIcon } from './icons';
 import { PointCategoryBadge } from './PointCategoryBadge';
-import type { Visibility, VisibilityActions } from './workspaceTypes';
+import type { CoordFormat, Visibility, VisibilityActions } from './workspaceTypes';
 
 interface Props {
   visibility: Visibility;
@@ -23,6 +26,7 @@ export function PointList({
 }: Props) {
   const state = useProject();
   const dispatch = useProjectDispatch();
+  const geometry = useStageGeometry();
   const stageMap = useMemo(() => getEffectivePointStages(state), [state]);
 
   const grouped = useMemo(() => {
@@ -44,14 +48,29 @@ export function PointList({
         <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wide">
           Points ({state.points.length})
         </h3>
-        <button
-          type="button"
-          onClick={() => dispatch({ type: 'RECLASSIFY_ALL_POINTS' })}
-          className="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-50 text-slate-600"
-          title="Re-run auto-classification on all points using their name/description. Does not clear manual overrides."
-        >
-          Re-classify
-        </button>
+        <div className="flex items-center gap-1">
+          <CoordFormatToggle format={visibility.coordFormat} onChange={visibilityActions.setCoordFormat} />
+          <button
+            type="button"
+            onClick={() => {
+              const assignments: Record<string, string> = {};
+              for (const p of state.points) {
+                if (p.stageOverride !== undefined) continue;
+                for (const [stageId, mp] of geometry.buffered) {
+                  if (pointInMultiPoly(p.coord, mp)) {
+                    assignments[p.id] = stageId;
+                    break;
+                  }
+                }
+              }
+              dispatch({ type: 'RECLASSIFY_ALL_POINTS', geoAssignments: assignments });
+            }}
+            className="text-[11px] px-2 py-0.5 rounded border border-slate-300 hover:bg-slate-50 text-slate-600"
+            title="Re-run auto-classification. Points inside a stage buffer are auto-assigned to that stage (unless manually overridden)."
+          >
+            Re-classify
+          </button>
+        </div>
       </div>
       <div className="space-y-1">
         {CATEGORY_ORDER.map((cat) => {
@@ -113,8 +132,7 @@ export function PointList({
                           )}
                         </div>
                         <div className="text-[10px] text-slate-500 font-mono truncate">
-                          {p.coord[1].toFixed(5)},{' '}
-                          {p.coord[0].toFixed(5)}
+                          {formatCoord(p.coord[0], p.coord[1], visibility.coordFormat)}
                         </div>
                       </button>
                       <button
@@ -212,6 +230,35 @@ export function PointList({
           );
         })}
       </div>
+    </div>
+  );
+}
+
+const FORMATS: { value: CoordFormat; label: string; title: string }[] = [
+  { value: 'decimal', label: 'Dec', title: 'Decimal degrees (e.g. 60.12345°N)' },
+  { value: 'dm', label: 'DM', title: "Degrees decimal minutes (e.g. 60°07.407'N)" },
+  { value: 'dms', label: 'DMS', title: 'Degrees minutes seconds (e.g. 60°07\'24.5"N)' },
+];
+
+function CoordFormatToggle({ format, onChange }: { format: CoordFormat; onChange: (f: CoordFormat) => void }) {
+  return (
+    <div className="flex rounded border border-slate-300 overflow-hidden text-[10px]">
+      {FORMATS.map((f) => (
+        <button
+          key={f.value}
+          type="button"
+          title={f.title}
+          onClick={() => onChange(f.value)}
+          className={[
+            'px-1.5 py-0.5',
+            format === f.value
+              ? 'bg-slate-700 text-white'
+              : 'bg-white text-slate-600 hover:bg-slate-50',
+          ].join(' ')}
+        >
+          {f.label}
+        </button>
+      ))}
     </div>
   );
 }

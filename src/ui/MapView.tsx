@@ -8,7 +8,6 @@ import {
 } from '@turf/turf';
 import { useEffect, useMemo } from 'react';
 import {
-  CircleMarker,
   MapContainer,
   Marker,
   Polygon as LPolygon,
@@ -20,6 +19,7 @@ import {
 } from 'react-leaflet';
 import { CATEGORY_META } from '../classify/categoryMeta';
 import type { RingMP } from '../geometry/bufferStage';
+import { formatCoord } from '../lib/formatCoord';
 import {
   effectiveCategory,
   getEffectivePointStages,
@@ -57,6 +57,13 @@ const TRACK_PALETTE = [
   '#84cc16',
   '#ec4899',
 ];
+
+const zoneVertexIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:10px;height:10px;border-radius:50%;background:white;border:2px solid #7c3aed;cursor:move;box-sizing:border-box;"></div>',
+  iconSize: [10, 10],
+  iconAnchor: [5, 5],
+});
 
 function paletteColor(index: number): string {
   return TRACK_PALETTE[index % TRACK_PALETTE.length];
@@ -650,6 +657,9 @@ export function MapView({
                   {CATEGORY_META[cat].label}
                   {stageName && ` · ${stageName}`}
                 </div>
+                <div className="text-[10px] text-slate-400 font-mono">
+                  {formatCoord(p.coord[0], p.coord[1], visibility.coordFormat)}
+                </div>
                 {p.folderPath.length > 0 && (
                   <div className="text-slate-400 italic">
                     {p.folderPath.join(' › ')}
@@ -714,12 +724,19 @@ export function MapView({
       )}
       {mapEditMode?.kind === 'draw_zone' &&
         mapEditMode.vertices.map((v, i) => (
-          <CircleMarker
+          <Marker
             key={i}
-            center={[v[1], v[0]]}
-            radius={5}
-            pathOptions={{ color: '#7c3aed', fillColor: 'white', fillOpacity: 1, weight: 2 }}
-            interactive={false}
+            position={[v[1], v[0]]}
+            draggable
+            icon={zoneVertexIcon}
+            eventHandlers={{
+              dragend(e) {
+                const ll = (e.target as L.Marker).getLatLng();
+                const verts = [...mapEditMode.vertices];
+                verts[i] = [ll.lng, ll.lat, 0];
+                onMapEditModeChange({ ...mapEditMode, vertices: verts });
+              },
+            }}
           />
         ))}
 
