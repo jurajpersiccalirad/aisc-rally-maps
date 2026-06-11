@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER, REQUIRED_STAGE_CATEGORIES } from '../classify/categoryMeta';
 import {
   effectiveCategory,
@@ -8,6 +8,7 @@ import {
   getStageLegTracks,
   getStageLengthKm,
   getStageStartEnd,
+  isStageReversed,
 } from '../state/selectors';
 import { useProject, useProjectDispatch } from '../state/useProject';
 import type { LngLatAlt, PointCategory, Stage } from '../types';
@@ -80,7 +81,11 @@ export function StageCard({
     [state.tracks, stagedIds],
   );
 
+  const reversed = useMemo(() => isStageReversed(state, stage.id), [state, stage.id]);
+
   const [showAddTrack, setShowAddTrack] = useState(false);
+  const [localName, setLocalName] = useState(stage.exportName);
+  useEffect(() => setLocalName(stage.exportName), [stage.exportName]);
 
   const overlapNames = useMemo(
     () =>
@@ -128,8 +133,9 @@ export function StageCard({
         )}
         <input
           type="text"
-          value={stage.exportName}
-          onChange={(e) =>
+          value={localName}
+          onChange={(e) => setLocalName(e.target.value)}
+          onBlur={(e) =>
             dispatch({
               type: 'RENAME_STAGE',
               stageId: stage.id,
@@ -163,6 +169,12 @@ export function StageCard({
         <p className="text-[11px] text-red-600">
           Duplicate name — rename to export.
         </p>
+      )}
+
+      {reversed && (
+        <div className="text-[11px] text-amber-800 bg-amber-50 border border-amber-200 rounded px-2 py-1.5">
+          ⚠ Track may be reversed — start/finish points suggest the opposite direction. Use "Reverse stage" or toggle leg direction.
+        </div>
       )}
 
       {overlapsWith.length > 0 && (

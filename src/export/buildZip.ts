@@ -102,6 +102,7 @@ export function planExport(
   paths.push('db/event_table.sql');
   paths.push('db/devices_table.sql');
   paths.push('db/credentials_table.sql');
+  paths.push('db/all_tables.sql');
   paths.push('db/credentials/<per-user .txt files>');
   paths.push(projectJsonFilename(state.eventName));
   paths.push(`wkt/${eventSlug}/${eventSlug}.wkt`);
@@ -251,9 +252,12 @@ export async function buildExportZip(
   const dbDir = zip.folder('db');
   if (!dbDir) throw new Error('Failed to create db/ folder.');
 
-  dbDir.file('stages_table.sql', stagesSql(tableRows, db.stageStartingId, db.eventId));
-  dbDir.file('event_table.sql', eventSql(db.eventId, state.eventName, db.eventStartDt, db.eventEndDt, db.unitSystem));
-  dbDir.file('devices_table.sql', deviceSql(db.selectedDevices, db.deviceStartingId, db.eventId));
+  const stageSqlStr = stagesSql(tableRows, db.stageStartingId, db.eventId);
+  const eventSqlStr = eventSql(db.eventId, state.eventName, db.eventStartDt, db.eventEndDt, db.unitSystem);
+  const deviceSqlStr = deviceSql(db.selectedDevices, db.deviceStartingId, db.eventId);
+  dbDir.file('stages_table.sql', stageSqlStr);
+  dbDir.file('event_table.sql', eventSqlStr);
+  dbDir.file('devices_table.sql', deviceSqlStr);
 
   // Hash passwords then write credentials SQL + per-user txt files
   const credDir = dbDir.folder('credentials');
@@ -270,7 +274,9 @@ export async function buildExportZip(
     credDir.file(txtName, txtContent);
   }
   db.onHashProgress?.(total, total);
-  dbDir.file('credentials_table.sql', credentialsSql(hashedRows, db.credStartingId));
+  const credSqlStr = credentialsSql(hashedRows, db.credStartingId);
+  dbDir.file('credentials_table.sql', credSqlStr);
+  dbDir.file('all_tables.sql', [eventSqlStr, stageSqlStr, deviceSqlStr, credSqlStr].join('\n'));
 
   const blob = await zip.generateAsync({
     type: 'blob',

@@ -492,6 +492,20 @@ export function MapView({
   const stagedIds = useMemo(() => getStagedTrackIds(state), [state]);
   const stageMap = useMemo(() => getEffectivePointStages(state), [state]);
   const geometry = useStageGeometry();
+  const collocated = useMemo(() => {
+    const THRESH = 0.0001; // ~11 m in degrees
+    const map = new Map<string, ParsedPoint[]>();
+    for (const p of points) {
+      const nearby = points.filter(
+        (q) =>
+          q.id !== p.id &&
+          Math.abs(q.coord[0] - p.coord[0]) < THRESH &&
+          Math.abs(q.coord[1] - p.coord[1]) < THRESH,
+      );
+      if (nearby.length > 0) map.set(p.id, nearby);
+    }
+    return map;
+  }, [points]);
 
   return (
     <MapContainer
@@ -600,6 +614,7 @@ export function MapView({
       {points.map((p) => {
         const cat = effectiveCategory(p);
         if (visibility.hiddenCategories.has(cat)) return null;
+        if (visibility.hiddenPointIds.has(p.id)) return null;
         const stageId = stageMap.get(p.id) ?? null;
         if (stageId && visibility.hiddenStageIds.has(stageId)) return null;
         const emphasized =
@@ -638,6 +653,35 @@ export function MapView({
                 {p.folderPath.length > 0 && (
                   <div className="text-slate-400 italic">
                     {p.folderPath.join(' › ')}
+                  </div>
+                )}
+                {(collocated.get(p.id) ?? []).length > 0 && (
+                  <div className="border-t border-slate-200 mt-1 pt-1 space-y-0.5">
+                    <div className="text-[10px] text-slate-400">Also here:</div>
+                    {(collocated.get(p.id) ?? []).map((q) => {
+                      const qCat = effectiveCategory(q);
+                      const qStageId = stageMap.get(q.id) ?? null;
+                      const qStageName = qStageId
+                        ? stages.find((s) => s.id === qStageId)?.exportName
+                        : undefined;
+                      return (
+                        <div key={q.id} className="flex items-center gap-1">
+                          <span
+                            className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[8px] font-bold flex-shrink-0"
+                            style={{
+                              background: CATEGORY_META[qCat].color,
+                              color: CATEGORY_META[qCat].textOnColor,
+                            }}
+                          >
+                            {CATEGORY_META[qCat].glyph}
+                          </span>
+                          <span>{q.name || q.description || '(unnamed)'}</span>
+                          {qStageName && (
+                            <span className="text-slate-400">· {qStageName}</span>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>

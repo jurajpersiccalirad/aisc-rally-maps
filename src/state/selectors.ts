@@ -316,6 +316,35 @@ export function getPreStartTc(
 }
 
 /**
+ * Returns true if the stage's track appears to be flowing in the wrong
+ * direction relative to its assigned start / finish points.
+ * Requires both a start and a finish point to be assigned; otherwise returns
+ * false (not enough information to judge).
+ */
+export function isStageReversed(state: ProjectState, stageId: string): boolean {
+  const ends = getStageStartEnd(state, stageId);
+  if (!ends) return false;
+  const assigned = getStageAssignedPoints(state, stageId);
+  const startPt = assigned.find((p) => effectiveCategory(p) === 'start');
+  const finishPt = assigned.find(
+    (p) => effectiveCategory(p) === 'finish',
+  );
+  if (!startPt || !finishPt) return false;
+
+  const trackStart = turfPoint([ends.start[0], ends.start[1]]);
+  const trackEnd = turfPoint([ends.end[0], ends.end[1]]);
+  const sp = turfPoint([startPt.coord[0], startPt.coord[1]]);
+  const fp = turfPoint([finishPt.coord[0], finishPt.coord[1]]);
+
+  const distEndToStart = turfDistance(trackEnd, sp, { units: 'meters' });
+  const distStartToStart = turfDistance(trackStart, sp, { units: 'meters' });
+  const distStartToFinish = turfDistance(trackStart, fp, { units: 'meters' });
+  const distEndToFinish = turfDistance(trackEnd, fp, { units: 'meters' });
+
+  return distEndToStart < distStartToStart && distStartToFinish < distEndToFinish;
+}
+
+/**
  * Build a Calirad-friendly default export name from a track's KML name.
  * Format: SSX-Y-Z (stage numbers only, no location name).
  * Examples:

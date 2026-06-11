@@ -40,9 +40,8 @@ function Workspace() {
   const [mapEditMode, setMapEditMode] = useState<MapEditMode>(null);
   const [hiddenStageIds, setHiddenStageIds] = useState<Set<string>>(new Set());
   const [hiddenTrackIds, setHiddenTrackIds] = useState<Set<string>>(new Set());
-  const [hiddenCategories, setHiddenCategories] = useState<Set<PointCategory>>(
-    new Set(),
-  );
+  const [hiddenCategories, setHiddenCategories] = useState<Set<PointCategory>>(new Set());
+  const [hiddenPointIds, setHiddenPointIds] = useState<Set<string>>(new Set());
   const [showBuffers, setShowBuffers] = useState(true);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
@@ -50,6 +49,7 @@ function Workspace() {
     hiddenStageIds,
     hiddenTrackIds,
     hiddenCategories,
+    hiddenPointIds,
     showBuffers,
   };
 
@@ -69,11 +69,13 @@ function Workspace() {
     toggleStage: toggleSet(setHiddenStageIds),
     toggleTrack: toggleSet(setHiddenTrackIds),
     toggleCategory: toggleSet(setHiddenCategories),
+    togglePoint: toggleSet(setHiddenPointIds),
     toggleBuffers: () => setShowBuffers((v) => !v),
     showAll: () => {
       setHiddenStageIds(new Set());
       setHiddenTrackIds(new Set());
       setHiddenCategories(new Set());
+      setHiddenPointIds(new Set());
     },
   };
 

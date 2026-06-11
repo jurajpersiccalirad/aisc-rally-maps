@@ -22,7 +22,6 @@ import { GOOGLE_KEY_LS, routeWaypoints } from '../lib/routing';
 import type { OsrmRoute } from '../lib/osrm';
 import { deploymentKml } from '../export/deploymentKml';
 import { deploymentGpx } from '../export/deploymentGpx';
-import { elevSvg } from '../export/deploymentPdf';
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -128,45 +127,6 @@ function viaStageWaypoints(from: LngLatAlt, stage: StageGeo, to: LngLatAlt): Lng
   return [from, ...sampled, to];
 }
 
-// ── elevation helpers ─────────────────────────────────────────────────────────
-
-function sampleArr<T>(arr: T[], n: number): T[] {
-  if (arr.length <= n) return arr;
-  return Array.from({ length: n }, (_, i) => arr[Math.round((i / (n - 1)) * (arr.length - 1))]);
-}
-
-async function fetchElevation(coords: [number, number][]): Promise<number[] | null> {
-  if (coords.length === 0) return null;
-  const locations = coords.map(([lng, lat]) => `${lat.toFixed(6)},${lng.toFixed(6)}`).join('|');
-  try {
-    const res = await fetch(`https://api.opentopodata.org/v1/srtm90m?locations=${locations}`);
-    if (!res.ok) return null;
-    const json = await res.json() as { results: { elevation: number }[] };
-    return json.results.map((r) => r.elevation);
-  } catch {
-    return null;
-  }
-}
-
-function toElevPoints(coords: [number, number][], elevs: number[]): [number, number][] {
-  const pts: [number, number][] = [];
-  let distKm = 0;
-  for (let i = 0; i < Math.min(coords.length, elevs.length); i++) {
-    if (i > 0) distKm += turfDistance(turfPoint(coords[i - 1]), turfPoint(coords[i]), { units: 'kilometers' });
-    pts.push([distKm, elevs[i]]);
-  }
-  return pts;
-}
-
-function extractElevation(coords: LngLatAlt[]): [number, number][] | null {
-  const withZ = coords.filter((c) => c[2] !== undefined && !isNaN(c[2] as number));
-  if (withZ.length < 2 || withZ.length < coords.length * 0.5) return null;
-  let distKm = 0;
-  return coords.map((c, i) => {
-    if (i > 0) distKm += turfDistance(turfPoint([coords[i - 1][0], coords[i - 1][1]]), turfPoint([c[0], c[1]]), { units: 'kilometers' });
-    return [distKm, c[2] ?? 0] as [number, number];
-  });
-}
 
 // ── grouped point selector ────────────────────────────────────────────────────
 

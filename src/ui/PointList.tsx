@@ -91,11 +91,22 @@ export function PointList({
                     <div className="flex items-start gap-1 group">
                       <button
                         type="button"
+                        onClick={() => visibilityActions.togglePoint(p.id)}
+                        className="text-slate-400 hover:text-slate-700 p-0.5 flex-shrink-0 mt-0.5"
+                        title={visibility.hiddenPointIds.has(p.id) ? 'Show on map' : 'Hide from map'}
+                      >
+                        {visibility.hiddenPointIds.has(p.id) ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => onFocusPoint(p.id)}
                         className="flex-1 min-w-0 text-left hover:underline"
                         title="Center map on this point"
                       >
-                        <div className="text-xs font-medium truncate">
+                        <div className={[
+                          'text-xs font-medium truncate',
+                          visibility.hiddenPointIds.has(p.id) ? 'text-slate-400' : '',
+                        ].join(' ')}>
                           {p.name || p.description || '(unnamed)'}
                           {p.sourceFileId === '__manual__' && (
                             <span className="ml-1 text-[9px] text-violet-500 font-normal">manual</span>

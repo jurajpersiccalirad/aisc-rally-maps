@@ -10,6 +10,7 @@ export interface Visibility {
   hiddenStageIds: ReadonlySet<string>;
   hiddenTrackIds: ReadonlySet<string>;
   hiddenCategories: ReadonlySet<PointCategory>;
+  hiddenPointIds: ReadonlySet<string>;
   showBuffers: boolean;
 }
 
@@ -17,6 +18,7 @@ export interface VisibilityActions {
   toggleStage(id: string): void;
   toggleTrack(id: string): void;
   toggleCategory(c: PointCategory): void;
+  togglePoint(id: string): void;
   toggleBuffers(): void;
   showAll(): void;
 }
