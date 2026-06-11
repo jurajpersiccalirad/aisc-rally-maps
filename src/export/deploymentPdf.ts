@@ -150,7 +150,7 @@ export function buildDeploymentPrintHtml(opts: DeploymentPdfOptions): string {
 <meta charset="UTF-8"/>
 <title>${esc(eventName)} — Deployment Plan</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""><\/script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:Arial,sans-serif;font-size:11pt;color:#1a1a1a}
@@ -275,7 +275,7 @@ ${legPagesHtml}
     tl.on('tileerror',function(){onReady(i);});
   });
 })();
-<\/script>
+</script>
 </body>
 </html>`;
 }
