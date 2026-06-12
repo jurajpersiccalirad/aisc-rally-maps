@@ -50,8 +50,10 @@ function Workspace() {
   const [hiddenCategories, setHiddenCategories] = useState<Set<PointCategory>>(new Set());
   const [hiddenPointIds, setHiddenPointIds] = useState<Set<string>>(new Set());
   const [showBuffers, setShowBuffers] = useState(true);
+  const [showStageEndpoints, setShowStageEndpoints] = useState(true);
   const [coordFormat, setCoordFormat] = useState<CoordFormat>('decimal');
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
   const visibility: Visibility = {
@@ -60,6 +62,7 @@ function Workspace() {
     hiddenCategories,
     hiddenPointIds,
     showBuffers,
+    showStageEndpoints,
     coordFormat,
   };
 
@@ -81,6 +84,7 @@ function Workspace() {
     toggleCategory: toggleSet(setHiddenCategories),
     togglePoint: toggleSet(setHiddenPointIds),
     toggleBuffers: () => setShowBuffers((v) => !v),
+    toggleStageEndpoints: () => setShowStageEndpoints((v) => !v),
     setCoordFormat,
     showAll: () => {
       setHiddenStageIds(new Set());
@@ -112,7 +116,7 @@ function Workspace() {
       <aside className="w-[440px] flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-y-auto p-4 space-y-4">
         <DropZone compact />
         <EventNameInput />
-        <div className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5">
+        <div className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5 flex-wrap">
           <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex-shrink-0">Coords</span>
           <div className="flex rounded border border-slate-200 overflow-hidden text-[10px]">
             {COORD_FORMATS.map((f) => (
@@ -130,6 +134,17 @@ function Workspace() {
               </button>
             ))}
           </div>
+          <button
+            type="button"
+            onClick={() => setShowStageEndpoints((v) => !v)}
+            title="Toggle stage start/end endpoint markers"
+            className={[
+              'text-[10px] px-1.5 py-0.5 rounded border',
+              showStageEndpoints ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50',
+            ].join(' ')}
+          >
+            endpoints
+          </button>
         </div>
         <TrackList
           setHover={setHover}
@@ -144,6 +159,7 @@ function Workspace() {
           visibility={visibility}
           visibilityActions={visibilityActions}
           onFocusStage={focusStage}
+          selectedStageId={selectedStageId}
         />
         <PointList
           visibility={visibility}
@@ -164,6 +180,7 @@ function Workspace() {
           mapEditMode={mapEditMode}
           onMapEditModeChange={setMapEditMode}
           onSelectPoint={setSelectedPointId}
+          onSelectStage={setSelectedStageId}
         />
       </section>
     </main>

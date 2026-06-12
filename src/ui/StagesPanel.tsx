@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useProject } from '../state/useProject';
 import { useStageGeometry } from '../state/useStageGeometry';
 import { StageCard } from './StageCard';
@@ -16,6 +16,7 @@ interface Props {
   visibility: Visibility;
   visibilityActions: VisibilityActions;
   onFocusStage: (stageId: string) => void;
+  selectedStageId?: string | null;
 }
 
 export function StagesPanel({
@@ -25,9 +26,22 @@ export function StagesPanel({
   visibility,
   visibilityActions,
   onFocusStage,
+  selectedStageId,
 }: Props) {
   const { stages } = useProject();
   const geometry = useStageGeometry();
+  const [flashStageId, setFlashStageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!selectedStageId) return;
+    const el = document.querySelector(`[data-stage-id="${selectedStageId}"]`);
+    if (el) {
+      setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
+    }
+    setFlashStageId(selectedStageId);
+    const t = setTimeout(() => setFlashStageId(null), 1800);
+    return () => clearTimeout(t);
+  }, [selectedStageId]);
 
   const duplicateNames = useMemo(() => {
     const counts = new Map<string, number>();
@@ -65,21 +79,22 @@ export function StagesPanel({
       </div>
       <div className="space-y-2">
         {stages.map((s) => (
-          <StageCard
-            key={s.id}
-            stage={s}
-            duplicateName={duplicateNames.has(s.exportName)}
-            setHover={setHover}
-            cropMode={cropMode}
-            setCropMode={setCropMode}
-            hidden={visibility.hiddenStageIds.has(s.id)}
-            onToggleVisible={() => visibilityActions.toggleStage(s.id)}
-            onFocus={() => onFocusStage(s.id)}
-            overlapsWith={geometry.overlapsFor.get(s.id) ?? []}
-            onFocusStage={onFocusStage}
-            visibility={visibility}
-            visibilityActions={visibilityActions}
-          />
+          <div key={s.id} data-stage-id={s.id} className={['rounded transition-all duration-75', flashStageId === s.id ? 'ring-2 ring-blue-400' : ''].join(' ')}>
+            <StageCard
+              stage={s}
+              duplicateName={duplicateNames.has(s.exportName)}
+              setHover={setHover}
+              cropMode={cropMode}
+              setCropMode={setCropMode}
+              hidden={visibility.hiddenStageIds.has(s.id)}
+              onToggleVisible={() => visibilityActions.toggleStage(s.id)}
+              onFocus={() => onFocusStage(s.id)}
+              overlapsWith={geometry.overlapsFor.get(s.id) ?? []}
+              onFocusStage={onFocusStage}
+              visibility={visibility}
+              visibilityActions={visibilityActions}
+            />
+          </div>
         ))}
       </div>
     </div>

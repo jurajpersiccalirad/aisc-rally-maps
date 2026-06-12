@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER } from '../classify/categoryMeta';
 import { pointInMultiPoly } from '../geometry/pointInMultiPoly';
 import { formatCoord } from '../lib/formatCoord';
@@ -30,6 +30,7 @@ export function PointList({
   const dispatch = useProjectDispatch();
   const geometry = useStageGeometry();
   const stageMap = useMemo(() => getEffectivePointStages(state), [state]);
+  const [flashId, setFlashId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedPointId) return;
@@ -38,6 +39,9 @@ export function PointList({
     const details = el.closest('details') as HTMLDetailsElement | null;
     if (details) details.open = true;
     setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
+    setFlashId(selectedPointId);
+    const t = setTimeout(() => setFlashId(null), 1800);
+    return () => clearTimeout(t);
   }, [selectedPointId]);
 
   const grouped = useMemo(() => {
@@ -116,7 +120,7 @@ export function PointList({
               </summary>
               <ul className="px-2 pb-2 space-y-1.5 border-t border-slate-100 pt-2">
                 {list.map((p) => (
-                  <li key={p.id} data-point-id={p.id} className="space-y-1">
+                  <li key={p.id} data-point-id={p.id} className={['space-y-1 rounded transition-all duration-75', flashId === p.id ? 'bg-blue-50 ring-2 ring-blue-400' : ''].join(' ')}>
                     <div className="flex items-start gap-1 group">
                       <button
                         type="button"

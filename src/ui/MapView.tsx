@@ -112,15 +112,15 @@ function arrowDivIcon(bearingDeg: number, color: string): L.DivIcon {
       display:block;
       width:0;
       height:0;
-      border-left:7px solid transparent;
-      border-right:7px solid transparent;
-      border-bottom:12px solid ${color};
+      border-left:10px solid transparent;
+      border-right:10px solid transparent;
+      border-bottom:17px solid ${color};
       transform: rotate(${bearingDeg}deg);
       transform-origin: center;
-      filter: drop-shadow(0 0 1px white);
+      filter: drop-shadow(0 0 2px white) drop-shadow(0 0 1px rgba(0,0,0,0.4));
     "></span>`,
-    iconSize: [14, 14],
-    iconAnchor: [7, 7],
+    iconSize: [20, 20],
+    iconAnchor: [10, 10],
   });
 }
 
@@ -129,7 +129,7 @@ function endpointDivIcon(
   color: string,
   emphasized: boolean,
 ): L.DivIcon {
-  const size = emphasized ? 26 : 22;
+  const size = emphasized ? 36 : 30;
   const bg = edge === 'start' ? '#16a34a' : '#dc2626';
   const glyph = edge === 'start' ? '▶' : '■';
   return L.divIcon({
@@ -140,15 +140,16 @@ function endpointDivIcon(
       justify-content:center;
       width:${size}px;
       height:${size}px;
-      border-radius:50%;
+      border-radius:4px;
       background:${bg};
       color:white;
       border:3px solid ${color};
-      box-shadow:0 0 0 1px rgba(0,0,0,0.35);
-      font-size:11px;
+      box-shadow:0 0 0 1px rgba(0,0,0,0.3),0 2px 4px rgba(0,0,0,0.25);
+      font-size:13px;
       font-weight:700;
       line-height:1;
       cursor: grab;
+      opacity:0.82;
     ">${glyph}</span>`,
     iconSize: [size, size],
     iconAnchor: [size / 2, size / 2],
@@ -308,6 +309,8 @@ interface StageLayerProps {
   bufferedMp?: RingMP;
   showBuffer: boolean;
   hasOverlap: boolean;
+  showEndpoints: boolean;
+  onSelectStage?: (id: string) => void;
 }
 
 function StageLayer({
@@ -317,6 +320,8 @@ function StageLayer({
   bufferedMp,
   showBuffer,
   hasOverlap,
+  showEndpoints,
+  onSelectStage,
 }: StageLayerProps) {
   const state = useProject();
   const dispatch = useProjectDispatch();
@@ -342,7 +347,7 @@ function StageLayer({
     const line = lineString(flat);
     const total = turfLength(line, { units: 'kilometers' });
     if (total <= 0) return [];
-    const count = Math.max(2, Math.min(10, Math.floor(total / 8)));
+    const count = Math.max(3, Math.min(20, Math.floor(total / 4)));
     const result: { coord: LngLatAlt; bearing: number }[] = [];
     for (let i = 1; i <= count; i++) {
       const frac = i / (count + 1);
@@ -398,6 +403,7 @@ function StageLayer({
           weight: hovered ? 7 : 5,
           opacity: 0.95,
         }}
+        eventHandlers={onSelectStage ? { click: () => onSelectStage(stage.id) } : undefined}
       >
         <Tooltip sticky>
           <div className="text-xs">
@@ -422,50 +428,40 @@ function StageLayer({
         />
       ))}
 
-      <Marker
-        position={[derived[0][1], derived[0][0]]}
-        draggable
-        icon={endpointDivIcon('start', color, hovered)}
-        eventHandlers={{
-          dragend: (e) => {
-            const ll = (e.target as L.Marker).getLatLng();
-            const f = snapToStageFraction(joined, [ll.lng, ll.lat]);
-            if (f !== null) {
-              dispatch({
-                type: 'SET_CROP',
-                stageId: stage.id,
-                cropStart: f,
-              });
-            }
-          },
-        }}
-      >
-        <Tooltip>{stage.exportName} start — drag to crop</Tooltip>
-      </Marker>
-
-      <Marker
-        position={[
-          derived[derived.length - 1][1],
-          derived[derived.length - 1][0],
-        ]}
-        draggable
-        icon={endpointDivIcon('end', color, hovered)}
-        eventHandlers={{
-          dragend: (e) => {
-            const ll = (e.target as L.Marker).getLatLng();
-            const f = snapToStageFraction(joined, [ll.lng, ll.lat]);
-            if (f !== null) {
-              dispatch({
-                type: 'SET_CROP',
-                stageId: stage.id,
-                cropEnd: f,
-              });
-            }
-          },
-        }}
-      >
-        <Tooltip>{stage.exportName} end — drag to crop</Tooltip>
-      </Marker>
+      {showEndpoints && (
+        <>
+          <Marker
+            position={[derived[0][1], derived[0][0]]}
+            draggable
+            zIndexOffset={-200}
+            icon={endpointDivIcon('start', color, hovered)}
+            eventHandlers={{
+              dragend: (e) => {
+                const ll = (e.target as L.Marker).getLatLng();
+                const f = snapToStageFraction(joined, [ll.lng, ll.lat]);
+                if (f !== null) dispatch({ type: 'SET_CROP', stageId: stage.id, cropStart: f });
+              },
+            }}
+          >
+            <Tooltip>{stage.exportName} start — drag to crop</Tooltip>
+          </Marker>
+          <Marker
+            position={[derived[derived.length - 1][1], derived[derived.length - 1][0]]}
+            draggable
+            zIndexOffset={-200}
+            icon={endpointDivIcon('end', color, hovered)}
+            eventHandlers={{
+              dragend: (e) => {
+                const ll = (e.target as L.Marker).getLatLng();
+                const f = snapToStageFraction(joined, [ll.lng, ll.lat]);
+                if (f !== null) dispatch({ type: 'SET_CROP', stageId: stage.id, cropEnd: f });
+              },
+            }}
+          >
+            <Tooltip>{stage.exportName} end — drag to crop</Tooltip>
+          </Marker>
+        </>
+      )}
     </>
   );
 }
@@ -483,6 +479,7 @@ interface Props {
   mapEditMode: MapEditMode;
   onMapEditModeChange: (mode: MapEditMode) => void;
   onSelectPoint?: (id: string) => void;
+  onSelectStage?: (id: string) => void;
 }
 
 export function MapView({
@@ -495,6 +492,7 @@ export function MapView({
   mapEditMode,
   onMapEditModeChange,
   onSelectPoint,
+  onSelectStage,
 }: Props) {
   const state = useProject();
   const { tracks, points, stages } = state;
@@ -592,6 +590,8 @@ export function MapView({
               bufferedMp={geometry.buffered.get(s.id)}
               showBuffer={visibility.showBuffers}
               hasOverlap={(geometry.overlapsFor.get(s.id) ?? []).length > 0}
+              showEndpoints={visibility.showStageEndpoints}
+              onSelectStage={onSelectStage}
             />
           );
         })}
@@ -638,6 +638,7 @@ export function MapView({
             key={p.id}
             position={[p.coord[1], p.coord[0]]}
             icon={categoryDivIcon(cat, emphasized)}
+            zIndexOffset={300}
             eventHandlers={onSelectPoint ? { click: () => onSelectPoint(p.id) } : undefined}
           >
             <Tooltip>
