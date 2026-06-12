@@ -482,6 +482,7 @@ interface Props {
   focusTarget: FocusTarget | null;
   mapEditMode: MapEditMode;
   onMapEditModeChange: (mode: MapEditMode) => void;
+  onSelectPoint?: (id: string) => void;
 }
 
 export function MapView({
@@ -493,6 +494,7 @@ export function MapView({
   focusTarget,
   mapEditMode,
   onMapEditModeChange,
+  onSelectPoint,
 }: Props) {
   const state = useProject();
   const { tracks, points, stages } = state;
@@ -636,6 +638,7 @@ export function MapView({
             key={p.id}
             position={[p.coord[1], p.coord[0]]}
             icon={categoryDivIcon(cat, emphasized)}
+            eventHandlers={onSelectPoint ? { click: () => onSelectPoint(p.id) } : undefined}
           >
             <Tooltip>
               <div className="text-xs space-y-0.5">

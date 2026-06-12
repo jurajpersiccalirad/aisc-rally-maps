@@ -32,6 +32,12 @@ import type {
   VisibilityActions,
 } from './ui/workspaceTypes';
 
+const COORD_FORMATS: { value: CoordFormat; label: string; title: string }[] = [
+  { value: 'decimal', label: 'Dec', title: 'Decimal degrees — 60.12345°N' },
+  { value: 'dm', label: "D°M'", title: "Degrees decimal minutes — 60°07.407'N" },
+  { value: 'dms', label: 'DMS', title: 'Degrees minutes seconds — 60°07\'24.5"N' },
+];
+
 function Workspace() {
   const state = useProject();
   const hasFile = state.sourceFiles.length > 0;
@@ -45,6 +51,7 @@ function Workspace() {
   const [hiddenPointIds, setHiddenPointIds] = useState<Set<string>>(new Set());
   const [showBuffers, setShowBuffers] = useState(true);
   const [coordFormat, setCoordFormat] = useState<CoordFormat>('decimal');
+  const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [focusTarget, setFocusTarget] = useState<FocusTarget | null>(null);
 
   const visibility: Visibility = {
@@ -105,6 +112,25 @@ function Workspace() {
       <aside className="w-[440px] flex-shrink-0 border-r border-slate-200 bg-slate-50 overflow-y-auto p-4 space-y-4">
         <DropZone compact />
         <EventNameInput />
+        <div className="flex items-center gap-2 rounded border border-slate-200 bg-white px-2 py-1.5">
+          <span className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide flex-shrink-0">Coords</span>
+          <div className="flex rounded border border-slate-200 overflow-hidden text-[10px]">
+            {COORD_FORMATS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                title={f.title}
+                onClick={() => setCoordFormat(f.value)}
+                className={[
+                  'px-1.5 py-0.5',
+                  coordFormat === f.value ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50',
+                ].join(' ')}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
         <TrackList
           setHover={setHover}
           visibility={visibility}
@@ -123,6 +149,7 @@ function Workspace() {
           visibility={visibility}
           visibilityActions={visibilityActions}
           onFocusPoint={focusPoint}
+          selectedPointId={selectedPointId}
         />
         <ManualEditor mapEditMode={mapEditMode} onMapEditModeChange={setMapEditMode} />
       </aside>
@@ -136,6 +163,7 @@ function Workspace() {
           focusTarget={focusTarget}
           mapEditMode={mapEditMode}
           onMapEditModeChange={setMapEditMode}
+          onSelectPoint={setSelectedPointId}
         />
       </section>
     </main>

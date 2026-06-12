@@ -77,6 +77,8 @@ export function StagesPanel({
             onFocus={() => onFocusStage(s.id)}
             overlapsWith={geometry.overlapsFor.get(s.id) ?? []}
             onFocusStage={onFocusStage}
+            visibility={visibility}
+            visibilityActions={visibilityActions}
           />
         ))}
       </div>

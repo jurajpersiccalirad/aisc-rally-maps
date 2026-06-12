@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER, REQUIRED_STAGE_CATEGORIES } from '../classify/categoryMeta';
+import { formatCoord } from '../lib/formatCoord';
 import {
   effectiveCategory,
   getPreStartTc,
@@ -11,9 +12,9 @@ import {
   isStageReversed,
 } from '../state/selectors';
 import { useProject, useProjectDispatch } from '../state/useProject';
-import type { LngLatAlt, PointCategory, Stage } from '../types';
+import type { PointCategory, Stage } from '../types';
 import { EyeIcon, EyeOffIcon, TargetIcon } from './icons';
-import type { CropMode, HoverState } from './workspaceTypes';
+import type { CropMode, HoverState, Visibility, VisibilityActions } from './workspaceTypes';
 
 interface Props {
   stage: Stage;
@@ -26,10 +27,8 @@ interface Props {
   onFocus: () => void;
   overlapsWith: string[];
   onFocusStage: (stageId: string) => void;
-}
-
-function formatCoord(c: LngLatAlt): string {
-  return `${c[1].toFixed(6)}, ${c[0].toFixed(6)}`;
+  visibility: Visibility;
+  visibilityActions: VisibilityActions;
 }
 
 export function StageCard({
@@ -43,6 +42,8 @@ export function StageCard({
   onFocus,
   overlapsWith,
   onFocusStage,
+  visibility,
+  visibilityActions,
 }: Props) {
   const state = useProject();
   const dispatch = useProjectDispatch();
@@ -414,14 +415,59 @@ export function StageCard({
       <dl className="grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px] font-mono">
         <dt className="text-slate-500">length</dt>
         <dd>{Math.round(lengthKm * 1000)} m</dd>
-        {ends && (
-          <>
-            <dt className="text-slate-500">start</dt>
-            <dd className="truncate">{formatCoord(ends.start)}</dd>
-            <dt className="text-slate-500">end</dt>
-            <dd className="truncate">{formatCoord(ends.end)}</dd>
-          </>
-        )}
+        {ends && (() => {
+          const startPt = assignedPoints.find((p) => effectiveCategory(p) === 'start');
+          const finishPt = assignedPoints.find((p) => effectiveCategory(p) === 'finish');
+          const coord = (c: [number, number, number?]) => formatCoord(c[0], c[1], visibility.coordFormat);
+          return (
+            <>
+              <dt className="flex items-center gap-1 text-slate-500 self-center">
+                {startPt && (
+                  <span
+                    className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[8px] font-bold flex-shrink-0"
+                    style={{ background: CATEGORY_META['start'].color, color: CATEGORY_META['start'].textOnColor }}
+                  >{CATEGORY_META['start'].glyph}</span>
+                )}
+                start
+              </dt>
+              <dd className="flex items-center gap-1 min-w-0">
+                <span className="truncate">{startPt ? coord(startPt.coord) : coord(ends.start)}</span>
+                {startPt && (
+                  <button
+                    type="button"
+                    onClick={() => visibilityActions.togglePoint(startPt.id)}
+                    className="flex-shrink-0 text-slate-400 hover:text-slate-700 p-0.5"
+                    title={visibility.hiddenPointIds.has(startPt.id) ? 'Show on map' : 'Hide from map'}
+                  >
+                    {visibility.hiddenPointIds.has(startPt.id) ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                )}
+              </dd>
+              <dt className="flex items-center gap-1 text-slate-500 self-center">
+                {finishPt && (
+                  <span
+                    className="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full text-[8px] font-bold flex-shrink-0"
+                    style={{ background: CATEGORY_META['finish'].color, color: CATEGORY_META['finish'].textOnColor }}
+                  >{CATEGORY_META['finish'].glyph}</span>
+                )}
+                end
+              </dt>
+              <dd className="flex items-center gap-1 min-w-0">
+                <span className="truncate">{finishPt ? coord(finishPt.coord) : coord(ends.end)}</span>
+                {finishPt && (
+                  <button
+                    type="button"
+                    onClick={() => visibilityActions.togglePoint(finishPt.id)}
+                    className="flex-shrink-0 text-slate-400 hover:text-slate-700 p-0.5"
+                    title={visibility.hiddenPointIds.has(finishPt.id) ? 'Show on map' : 'Hide from map'}
+                  >
+                    {visibility.hiddenPointIds.has(finishPt.id) ? <EyeOffIcon /> : <EyeIcon />}
+                  </button>
+                )}
+              </dd>
+            </>
+          );
+        })()}
       </dl>
 
       <label className="flex items-center justify-between gap-2 text-xs">
@@ -482,29 +528,57 @@ export function StageCard({
         );
       })()}
 
-      <div className="text-[11px] text-slate-600 flex items-center gap-1 flex-wrap">
-        <span className="text-slate-500">points:</span>
-        {assignedPoints.length === 0 ? (
-          <span className="text-slate-400 italic">none</span>
-        ) : (
-          CATEGORY_ORDER.filter((c) => (categoryCounts.get(c) ?? 0) > 0).map(
-            (c) => (
+      <details className="text-[11px]" open={assignedPoints.length > 0 && assignedPoints.length <= 6}>
+        <summary className="cursor-pointer flex items-center gap-1.5 text-slate-500 select-none">
+          <span>points ({assignedPoints.length})</span>
+          <span className="flex gap-0.5 flex-wrap">
+            {CATEGORY_ORDER.filter((c) => (categoryCounts.get(c) ?? 0) > 0).map((c) => (
               <span
                 key={c}
-                className="inline-flex items-center gap-0.5 rounded px-1 py-0.5"
-                style={{
-                  background: CATEGORY_META[c].color,
-                  color: CATEGORY_META[c].textOnColor,
-                }}
+                className="inline-flex items-center gap-0.5 rounded px-1 py-0.5 text-[10px]"
+                style={{ background: CATEGORY_META[c].color, color: CATEGORY_META[c].textOnColor }}
                 title={CATEGORY_META[c].label}
               >
                 <span aria-hidden>{CATEGORY_META[c].glyph}</span>
                 <span>{categoryCounts.get(c)}</span>
               </span>
-            ),
-          )
+            ))}
+          </span>
+        </summary>
+        {assignedPoints.length === 0 ? (
+          <div className="text-slate-400 italic mt-1 pl-1">none</div>
+        ) : (
+          <ul className="mt-1 space-y-0.5">
+            {CATEGORY_ORDER.flatMap((c) =>
+              assignedPoints
+                .filter((p) => effectiveCategory(p) === c)
+                .map((p) => {
+                  const meta = CATEGORY_META[c];
+                  const isHidden = visibility.hiddenPointIds.has(p.id);
+                  return (
+                    <li key={p.id} className="flex items-center gap-1 group">
+                      <span
+                        className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[8px] font-bold flex-shrink-0"
+                        style={{ background: meta.color, color: meta.textOnColor }}
+                      >{meta.glyph}</span>
+                      <span className={['flex-1 truncate', isHidden ? 'text-slate-400' : 'text-slate-700'].join(' ')}>
+                        {p.name || p.description || '(unnamed)'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => visibilityActions.togglePoint(p.id)}
+                        className="text-slate-400 hover:text-slate-700 p-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                        title={isHidden ? 'Show on map' : 'Hide from map'}
+                      >
+                        {isHidden ? <EyeOffIcon /> : <EyeIcon />}
+                      </button>
+                    </li>
+                  );
+                })
+            )}
+          </ul>
         )}
-      </div>
+      </details>
     </div>
   );
 }

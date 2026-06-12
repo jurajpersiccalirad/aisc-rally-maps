@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { CATEGORY_META, CATEGORY_ORDER } from '../classify/categoryMeta';
 import { pointInMultiPoly } from '../geometry/pointInMultiPoly';
 import { formatCoord } from '../lib/formatCoord';
@@ -11,23 +11,34 @@ import { useProject, useProjectDispatch } from '../state/useProject';
 import type { ParsedPoint, PointCategory } from '../types';
 import { EyeIcon, EyeOffIcon, TargetIcon } from './icons';
 import { PointCategoryBadge } from './PointCategoryBadge';
-import type { CoordFormat, Visibility, VisibilityActions } from './workspaceTypes';
+import type { Visibility, VisibilityActions } from './workspaceTypes';
 
 interface Props {
   visibility: Visibility;
   visibilityActions: VisibilityActions;
   onFocusPoint: (pointId: string) => void;
+  selectedPointId?: string | null;
 }
 
 export function PointList({
   visibility,
   visibilityActions,
   onFocusPoint,
+  selectedPointId,
 }: Props) {
   const state = useProject();
   const dispatch = useProjectDispatch();
   const geometry = useStageGeometry();
   const stageMap = useMemo(() => getEffectivePointStages(state), [state]);
+
+  useEffect(() => {
+    if (!selectedPointId) return;
+    const el = document.querySelector(`[data-point-id="${selectedPointId}"]`);
+    if (!el) return;
+    const details = el.closest('details') as HTMLDetailsElement | null;
+    if (details) details.open = true;
+    setTimeout(() => el.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 30);
+  }, [selectedPointId]);
 
   const grouped = useMemo(() => {
     const m = new Map<PointCategory, ParsedPoint[]>();
@@ -49,7 +60,6 @@ export function PointList({
           Points ({state.points.length})
         </h3>
         <div className="flex items-center gap-1">
-          <CoordFormatToggle format={visibility.coordFormat} onChange={visibilityActions.setCoordFormat} />
           <button
             type="button"
             onClick={() => {
@@ -106,7 +116,7 @@ export function PointList({
               </summary>
               <ul className="px-2 pb-2 space-y-1.5 border-t border-slate-100 pt-2">
                 {list.map((p) => (
-                  <li key={p.id} className="space-y-1">
+                  <li key={p.id} data-point-id={p.id} className="space-y-1">
                     <div className="flex items-start gap-1 group">
                       <button
                         type="button"
@@ -234,31 +244,3 @@ export function PointList({
   );
 }
 
-const FORMATS: { value: CoordFormat; label: string; title: string }[] = [
-  { value: 'decimal', label: 'Dec', title: 'Decimal degrees (e.g. 60.12345°N)' },
-  { value: 'dm', label: 'DM', title: "Degrees decimal minutes (e.g. 60°07.407'N)" },
-  { value: 'dms', label: 'DMS', title: 'Degrees minutes seconds (e.g. 60°07\'24.5"N)' },
-];
-
-function CoordFormatToggle({ format, onChange }: { format: CoordFormat; onChange: (f: CoordFormat) => void }) {
-  return (
-    <div className="flex rounded border border-slate-300 overflow-hidden text-[10px]">
-      {FORMATS.map((f) => (
-        <button
-          key={f.value}
-          type="button"
-          title={f.title}
-          onClick={() => onChange(f.value)}
-          className={[
-            'px-1.5 py-0.5',
-            format === f.value
-              ? 'bg-slate-700 text-white'
-              : 'bg-white text-slate-600 hover:bg-slate-50',
-          ].join(' ')}
-        >
-          {f.label}
-        </button>
-      ))}
-    </div>
-  );
-}
