@@ -309,7 +309,9 @@ interface StageLayerProps {
   bufferedMp?: RingMP;
   showBuffer: boolean;
   hasOverlap: boolean;
-  showEndpoints: boolean;
+  showArrows: boolean;
+  showStartMarker: boolean;
+  showEndMarker: boolean;
   onSelectStage?: (id: string) => void;
 }
 
@@ -320,11 +322,12 @@ function StageLayer({
   bufferedMp,
   showBuffer,
   hasOverlap,
-  showEndpoints,
+  showArrows,
+  showStartMarker,
+  showEndMarker,
   onSelectStage,
 }: StageLayerProps) {
   const state = useProject();
-  const dispatch = useProjectDispatch();
 
   const derived = useMemo(
     () => getStageDerivedGeometry(state, stage.id),
@@ -419,7 +422,7 @@ function StageLayer({
         </Tooltip>
       </Polyline>
 
-      {arrows.map((a, i) => (
+      {showArrows && arrows.map((a, i) => (
         <Marker
           key={`arrow-${i}`}
           position={[a.coord[1], a.coord[0]]}
@@ -428,40 +431,28 @@ function StageLayer({
         />
       ))}
 
-      {showEndpoints && (
-        <>
-          <Marker
-            position={[derived[0][1], derived[0][0]]}
-            draggable
-            zIndexOffset={-200}
-            icon={endpointDivIcon('start', color, hovered)}
-            eventHandlers={{
-              dragend: (e) => {
-                const ll = (e.target as L.Marker).getLatLng();
-                const f = snapToStageFraction(joined, [ll.lng, ll.lat]);
-                if (f !== null) dispatch({ type: 'SET_CROP', stageId: stage.id, cropStart: f });
-              },
-            }}
-          >
-            <Tooltip>{stage.exportName} start — drag to crop</Tooltip>
-          </Marker>
-          <Marker
-            position={[derived[derived.length - 1][1], derived[derived.length - 1][0]]}
-            draggable
-            zIndexOffset={-200}
-            icon={endpointDivIcon('end', color, hovered)}
-            eventHandlers={{
-              dragend: (e) => {
-                const ll = (e.target as L.Marker).getLatLng();
-                const f = snapToStageFraction(joined, [ll.lng, ll.lat]);
-                if (f !== null) dispatch({ type: 'SET_CROP', stageId: stage.id, cropEnd: f });
-              },
-            }}
-          >
-            <Tooltip>{stage.exportName} end — drag to crop</Tooltip>
-          </Marker>
-        </>
+      {showStartMarker && (
+        <Marker
+          position={[derived[0][1], derived[0][0]]}
+          icon={endpointDivIcon('start', color, hovered)}
+          zIndexOffset={-200}
+          eventHandlers={onSelectStage ? { click: () => onSelectStage(stage.id) } : undefined}
+        >
+          <Tooltip>{stage.exportName} start</Tooltip>
+        </Marker>
       )}
+
+      {showEndMarker && (
+        <Marker
+          position={[derived[derived.length - 1][1], derived[derived.length - 1][0]]}
+          icon={endpointDivIcon('end', color, hovered)}
+          zIndexOffset={-200}
+          eventHandlers={onSelectStage ? { click: () => onSelectStage(stage.id) } : undefined}
+        >
+          <Tooltip>{stage.exportName} end</Tooltip>
+        </Marker>
+      )}
+
     </>
   );
 }
@@ -518,12 +509,15 @@ export function MapView({
     <MapContainer
       center={DEFAULT_CENTER}
       zoom={DEFAULT_ZOOM}
+      maxZoom={22}
       scrollWheelZoom
       style={{ height: '100%', width: '100%' }}
     >
       <TileLayer
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maxNativeZoom={19}
+        maxZoom={22}
       />
 
       <CursorForCropMode cropMode={cropMode} />
@@ -590,7 +584,9 @@ export function MapView({
               bufferedMp={geometry.buffered.get(s.id)}
               showBuffer={visibility.showBuffers}
               hasOverlap={(geometry.overlapsFor.get(s.id) ?? []).length > 0}
-              showEndpoints={visibility.showStageEndpoints}
+              showArrows={visibility.showArrows}
+              showStartMarker={visibility.showStartMarkers}
+              showEndMarker={visibility.showEndMarkers}
               onSelectStage={onSelectStage}
             />
           );

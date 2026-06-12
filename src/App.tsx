@@ -50,7 +50,9 @@ function Workspace() {
   const [hiddenCategories, setHiddenCategories] = useState<Set<PointCategory>>(new Set());
   const [hiddenPointIds, setHiddenPointIds] = useState<Set<string>>(new Set());
   const [showBuffers, setShowBuffers] = useState(true);
-  const [showStageEndpoints, setShowStageEndpoints] = useState(true);
+  const [showArrows, setShowArrows] = useState(true);
+  const [showStartMarkers, setShowStartMarkers] = useState(true);
+  const [showEndMarkers, setShowEndMarkers] = useState(true);
   const [coordFormat, setCoordFormat] = useState<CoordFormat>('decimal');
   const [selectedPointId, setSelectedPointId] = useState<string | null>(null);
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
@@ -62,7 +64,9 @@ function Workspace() {
     hiddenCategories,
     hiddenPointIds,
     showBuffers,
-    showStageEndpoints,
+    showArrows,
+    showStartMarkers,
+    showEndMarkers,
     coordFormat,
   };
 
@@ -84,7 +88,9 @@ function Workspace() {
     toggleCategory: toggleSet(setHiddenCategories),
     togglePoint: toggleSet(setHiddenPointIds),
     toggleBuffers: () => setShowBuffers((v) => !v),
-    toggleStageEndpoints: () => setShowStageEndpoints((v) => !v),
+    toggleArrows: () => setShowArrows((v) => !v),
+    toggleStartMarkers: () => setShowStartMarkers((v) => !v),
+    toggleEndMarkers: () => setShowEndMarkers((v) => !v),
     setCoordFormat,
     showAll: () => {
       setHiddenStageIds(new Set());
@@ -134,17 +140,41 @@ function Workspace() {
               </button>
             ))}
           </div>
-          <button
-            type="button"
-            onClick={() => setShowStageEndpoints((v) => !v)}
-            title="Toggle stage start/end endpoint markers"
-            className={[
-              'text-[10px] px-1.5 py-0.5 rounded border',
-              showStageEndpoints ? 'border-slate-700 bg-slate-700 text-white' : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50',
-            ].join(' ')}
-          >
-            endpoints
-          </button>
+          <div className="flex rounded border border-slate-200 overflow-hidden text-[10px]">
+            <button
+              type="button"
+              onClick={() => setShowArrows((v) => !v)}
+              title="Toggle direction arrows along stage tracks"
+              className={[
+                'px-1.5 py-0.5',
+                showArrows ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50',
+              ].join(' ')}
+            >
+              arrows
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowStartMarkers((v) => !v)}
+              title="Toggle stage start markers"
+              className={[
+                'px-1.5 py-0.5 border-l border-slate-200',
+                showStartMarkers ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50',
+              ].join(' ')}
+            >
+              ▶ start
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowEndMarkers((v) => !v)}
+              title="Toggle stage end markers"
+              className={[
+                'px-1.5 py-0.5 border-l border-slate-200',
+                showEndMarkers ? 'bg-slate-700 text-white' : 'bg-white text-slate-600 hover:bg-slate-50',
+              ].join(' ')}
+            >
+              ■ end
+            </button>
+          </div>
         </div>
         <TrackList
           setHover={setHover}

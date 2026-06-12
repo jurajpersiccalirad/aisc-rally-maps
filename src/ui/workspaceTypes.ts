@@ -15,7 +15,9 @@ export interface Visibility {
   hiddenCategories: ReadonlySet<PointCategory>;
   hiddenPointIds: ReadonlySet<string>;
   showBuffers: boolean;
-  showStageEndpoints: boolean;
+  showArrows: boolean;
+  showStartMarkers: boolean;
+  showEndMarkers: boolean;
   coordFormat: CoordFormat;
 }
 
@@ -25,7 +27,9 @@ export interface VisibilityActions {
   toggleCategory(c: PointCategory): void;
   togglePoint(id: string): void;
   toggleBuffers(): void;
-  toggleStageEndpoints(): void;
+  toggleArrows(): void;
+  toggleStartMarkers(): void;
+  toggleEndMarkers(): void;
   setCoordFormat(f: CoordFormat): void;
   showAll(): void;
 }

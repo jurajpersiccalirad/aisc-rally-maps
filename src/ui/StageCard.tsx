@@ -337,8 +337,14 @@ export function StageCard({
           {(stage.cropEnd * 100).toFixed(1)}%)
         </div>
         <div className="space-y-1">
-          <label className="flex items-center gap-2 text-[11px]">
-            <span className="text-slate-500 w-10">start</span>
+          <label className="flex items-center gap-1 text-[11px]">
+            <span className="text-slate-500 w-10 flex-shrink-0">start</span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_CROP', stageId: stage.id, cropStart: stage.cropStart - 0.00005 })}
+              className="px-1 py-0.5 rounded border border-slate-300 hover:bg-slate-100 leading-none flex-shrink-0"
+              title="Step back ~1 m"
+            >◀</button>
             <input
               type="range"
               min={0}
@@ -352,8 +358,14 @@ export function StageCard({
                   cropStart: Number(e.target.value),
                 })
               }
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_CROP', stageId: stage.id, cropStart: stage.cropStart + 0.00005 })}
+              className="px-1 py-0.5 rounded border border-slate-300 hover:bg-slate-100 leading-none flex-shrink-0"
+              title="Step forward ~1 m"
+            >▶</button>
             <button
               type="button"
               onClick={() =>
@@ -364,7 +376,7 @@ export function StageCard({
                 )
               }
               className={[
-                'px-1.5 py-0.5 rounded text-[10px]',
+                'px-1.5 py-0.5 rounded text-[10px] flex-shrink-0',
                 isCroppingStart
                   ? 'bg-green-600 text-white'
                   : 'bg-white border border-slate-300 hover:border-green-500',
@@ -374,8 +386,14 @@ export function StageCard({
               {isCroppingStart ? 'click map…' : '⌖ map'}
             </button>
           </label>
-          <label className="flex items-center gap-2 text-[11px]">
-            <span className="text-slate-500 w-10">end</span>
+          <label className="flex items-center gap-1 text-[11px]">
+            <span className="text-slate-500 w-10 flex-shrink-0">end</span>
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_CROP', stageId: stage.id, cropEnd: stage.cropEnd - 0.00005 })}
+              className="px-1 py-0.5 rounded border border-slate-300 hover:bg-slate-100 leading-none flex-shrink-0"
+              title="Step back ~1 m"
+            >◀</button>
             <input
               type="range"
               min={0}
@@ -389,8 +407,14 @@ export function StageCard({
                   cropEnd: Number(e.target.value),
                 })
               }
-              className="flex-1"
+              className="flex-1 min-w-0"
             />
+            <button
+              type="button"
+              onClick={() => dispatch({ type: 'SET_CROP', stageId: stage.id, cropEnd: stage.cropEnd + 0.00005 })}
+              className="px-1 py-0.5 rounded border border-slate-300 hover:bg-slate-100 leading-none flex-shrink-0"
+              title="Step forward ~1 m"
+            >▶</button>
             <button
               type="button"
               onClick={() =>
@@ -399,7 +423,7 @@ export function StageCard({
                 )
               }
               className={[
-                'px-1.5 py-0.5 rounded text-[10px]',
+                'px-1.5 py-0.5 rounded text-[10px] flex-shrink-0',
                 isCroppingEnd
                   ? 'bg-red-600 text-white'
                   : 'bg-white border border-slate-300 hover:border-red-500',
